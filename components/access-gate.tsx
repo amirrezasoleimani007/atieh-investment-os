@@ -1,0 +1,79 @@
+"use client";
+
+import Image from "next/image";
+import { Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
+
+const SESSION_KEY = "ips-access-v29";
+
+export default function AccessGate({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
+  const [password, setPassword] = useState("");
+  const [visible, setVisible] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    try {
+      setAuthorized(sessionStorage.getItem(SESSION_KEY) === "ok");
+    } finally {
+      setReady(true);
+    }
+  }, []);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (password !== "4321") {
+      setError("رمز ورود صحیح نیست؛ دوباره تلاش کنید.");
+      return;
+    }
+    sessionStorage.setItem(SESSION_KEY, "ok");
+    setError("");
+    setAuthorized(true);
+  };
+
+  if (!ready) return <div className="access-loading" aria-label="در حال آماده‌سازی سامانه" />;
+  if (authorized) return children;
+
+  return (
+    <main className="access-gate" dir="rtl">
+      <div className="access-grid" />
+      <div className="access-glow glow-blue" />
+      <div className="access-glow glow-gold" />
+      <div className="capital-lines" aria-hidden="true">
+        <svg viewBox="0 0 920 560" preserveAspectRatio="none">
+          <path d="M0 440 C170 420 210 255 385 310 S620 180 920 92" />
+          <path d="M0 510 C185 470 270 392 430 410 S700 270 920 230" />
+          <circle cx="385" cy="310" r="7" />
+          <circle cx="705" cy="154" r="7" />
+        </svg>
+      </div>
+      <section className="access-branding">
+        <div className="access-logo"><Image src="/atieh-logo.png" width={92} height={92} alt="آتیه فولاد" priority unoptimized /></div>
+        <span>گروه سرمایه‌گذاری آتیه فولاد نقش جهان</span>
+        <small className="brand-unit">واحد مدیریت سرمایه‌گذاری آتیه فولاد نقش جهان</small>
+        <h1><span className="hero-line">از شناخت واقعیت امروز</span><span className="hero-line hero-gold">تا انتخاب مسیر رشد فردا</span></h1>
+        <p>محیط یکپارچه تحلیل پرتفوی، انتخاب فرصت‌های رشد و تخصیص راهبردی منابع گروه آتیه فولاد.</p>
+        <div className="access-proof"><ShieldCheck /><span><b>محیط تصمیم‌یار مدیریتی</b><small>داده‌ها، سیاست‌ها و مسیر تخصیص در یک روایت پیوسته</small></span></div>
+      </section>
+      <form className="access-form" onSubmit={submit}>
+        <header>
+          <span><LockKeyhole /> دسترسی سازمانی</span>
+          <h2>ورود به سامانه</h2>
+          <p>برای ادامه، رمز دسترسی را وارد کنید.</p>
+        </header>
+        <label>
+          <span>رمز ورود</span>
+          <div className={error ? "has-error" : ""}>
+            <LockKeyhole />
+            <input autoFocus inputMode="numeric" autoComplete="current-password" type={visible ? "text" : "password"} value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} aria-invalid={Boolean(error)} aria-describedby="access-error" placeholder="رمز چهاررقمی" />
+            <button type="button" onClick={() => setVisible((value) => !value)} aria-label={visible ? "پنهان کردن رمز" : "نمایش رمز"}>{visible ? <EyeOff /> : <Eye />}</button>
+          </div>
+        </label>
+        <p id="access-error" className="access-error" aria-live="polite">{error || "\u00a0"}</p>
+        <button className="access-submit" type="submit">ورود امن به سامانه</button>
+        <footer>نشست ورود تا زمانی که این برگه مرورگر باز است حفظ می‌شود.</footer>
+      </form>
+    </main>
+  );
+}
