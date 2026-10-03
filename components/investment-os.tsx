@@ -1845,8 +1845,9 @@ function McKinseyView({ companies }: { companies: Company[] }) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const storedLimit = Number(localStorage.getItem("ips-mckinsey-effect-limit"));
-        const limit = Number.isFinite(storedLimit)
+        const storedLimitValue = localStorage.getItem("ips-mckinsey-effect-limit");
+        const storedLimit = Number(storedLimitValue);
+        const limit = storedLimitValue !== null && Number.isFinite(storedLimit)
           ? Math.max(0, Math.min(MAX_MANAGEMENT_EFFECT, storedLimit))
           : MAX_MANAGEMENT_EFFECT;
         const stored = JSON.parse(
