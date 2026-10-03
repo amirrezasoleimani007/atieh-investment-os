@@ -1,7 +1,7 @@
 "use client";
 import {formatFinancialValue} from "@/lib/financial-display.mjs";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import MarketIndustries from "@/components/market-industries";
 import ManagementNarratives from "@/components/company-narratives";
@@ -12,6 +12,11 @@ import {
   baselineHorizon,
 } from "@/lib/movement-model.mjs";
 import { priorityScore } from "@/lib/priority-score.mjs";
+import {
+  applyManagementAdjustment,
+  MAX_MANAGEMENT_EFFECT,
+  normalizeManagementAdjustments,
+} from "@/lib/management-adjustment.mjs";
 import {
   Activity,
   ArrowLeft,
@@ -1831,24 +1836,101 @@ function McKinseyView({ companies }: { companies: Company[] }) {
     (c) => c.market?.["کل"] != null && c.score != null,
   );
   const [lens, setLens] = useState("score"),
-    [name, setName] = useState(available[0]?.name ?? "");
+    [name, setName] = useState(available[0]?.name ?? ""),
+    [settingsOpen, setSettingsOpen] = useState(false),
+    [effectLimit, setEffectLimit] = useState(MAX_MANAGEMENT_EFFECT),
+    [managementEffects, setManagementEffects] = useState<
+      Record<string, { financial: number; market: number }>
+  >({});
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const storedLimit = Number(localStorage.getItem("ips-mckinsey-effect-limit"));
+        const limit = Number.isFinite(storedLimit)
+          ? Math.max(0, Math.min(MAX_MANAGEMENT_EFFECT, storedLimit))
+          : MAX_MANAGEMENT_EFFECT;
+        const stored = JSON.parse(
+          localStorage.getItem("ips-mckinsey-management-effects") ?? "{}",
+        );
+        setEffectLimit(limit);
+        setManagementEffects(normalizeManagementAdjustments(stored, limit));
+      } catch {
+        setEffectLimit(MAX_MANAGEMENT_EFFECT);
+        setManagementEffects({});
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const selected = available.find((c) => c.name === name) ?? available[0];
-  const financialValues = available
-      .map((c) => scoreOf(c, lens))
+  const persistEffects = (
+    next: Record<string, { financial: number; market: number }>,
+  ) => {
+    setManagementEffects(next);
+    localStorage.setItem("ips-mckinsey-management-effects", JSON.stringify(next));
+  };
+  const updateEffect = (
+    company: string,
+    axis: "financial" | "market",
+    value: number,
+  ) => {
+    const current = managementEffects[company] ?? { financial: 0, market: 0 };
+    persistEffects({
+      ...managementEffects,
+      [company]: normalizeManagementAdjustments(
+        { [company]: { ...current, [axis]: value } },
+        effectLimit,
+      )[company],
+    });
+  };
+  const updateLimit = (value: number) => {
+    const limit = Math.max(0, Math.min(MAX_MANAGEMENT_EFFECT, value));
+    const next = normalizeManagementAdjustments(managementEffects, limit);
+    setEffectLimit(limit);
+    localStorage.setItem("ips-mckinsey-effect-limit", String(limit));
+    persistEffects(next);
+  };
+  const adjustedScores = available.map((company) => {
+    const baseFinancial = scoreOf(company, lens);
+    const baseMarket = company.market["کل"];
+    const effects = managementEffects[company.name] ?? {
+      financial: 0,
+      market: 0,
+    };
+    return {
+      company,
+      baseFinancial,
+      baseMarket,
+      financial:
+        baseFinancial == null
+          ? null
+          : applyManagementAdjustment(
+              baseFinancial,
+              effects.financial,
+              effectLimit,
+            ),
+      market: applyManagementAdjustment(
+        baseMarket,
+        effects.market,
+        effectLimit,
+      ),
+      effects,
+    };
+  });
+  const financialValues = adjustedScores
+      .map((row) => row.financial)
       .filter((v): v is number => v != null),
-    marketValues = available
-      .map((c) => c.market["کل"])
+    marketValues = adjustedScores
+      .map((row) => row.market)
       .filter((v): v is number => v != null);
   const compactSpread = (values: number[], value: number) =>
     5 + (percentile(values, value) - 5) * 0.9;
-  const points = available
-    .map((c) => {
-      const financial = scoreOf(c, lens),
-        market = c.market["کل"];
+  const points = adjustedScores
+    .map((row) => {
+      const { financial, market } = row;
       return financial == null || market == null
         ? null
         : {
-            company: c,
+            ...row,
             financial,
             market,
             displayFinancial: compactSpread(financialValues, financial),
@@ -1893,7 +1975,135 @@ function McKinseyView({ companies }: { companies: Company[] }) {
             ))}
           </select>
         </div>
+        <button
+          className={`advanced-score-trigger ${settingsOpen ? "active" : ""}`}
+          onClick={() => setSettingsOpen((value) => !value)}
+        >
+          <span><Gauge /></span>
+          <div>
+            <b>تنظیمات پیشرفته تحلیل مدیریت</b>
+            <small>
+              {Object.values(managementEffects).filter(
+                (value) => value.financial !== 0 || value.market !== 0,
+              ).length.toLocaleString("fa-IR")} شرکت دارای تعدیل
+            </small>
+          </div>
+          <ChevronLeft />
+        </button>
       </section>
+      {settingsOpen && (
+        <section className="panel management-adjustment-panel">
+          <header>
+            <div>
+              <span>لایه تحلیل مدیریت</span>
+              <h2>تنظیم اثر مستقل بر مالی و بازار</h2>
+              <p>
+                امتیاز مرجع محفوظ می‌ماند؛ درصد انتخابی فقط امتیاز مؤثر و جایگاه
+                شرکت در ماتریس را تغییر می‌دهد.
+              </p>
+            </div>
+            <label className="effect-limit-control">
+              <span>سقف مجاز اثر</span>
+              <input
+                type="range"
+                min="0"
+                max={MAX_MANAGEMENT_EFFECT}
+                step="1"
+                value={effectLimit}
+                onChange={(event) => updateLimit(Number(event.target.value))}
+              />
+              <b>{fa(effectLimit, 0)}٪</b>
+            </label>
+          </header>
+          <div className="adjustment-table-wrap">
+            <table className="adjustment-table">
+              <thead>
+                <tr>
+                  <th>شرکت</th>
+                  <th>اثر مالی</th>
+                  <th>اثر بازار</th>
+                  <th>نتیجه مؤثر</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {adjustedScores.map((row) => (
+                  <tr
+                    key={row.company.name}
+                    className={row.company.name === selected?.name ? "selected" : ""}
+                    onClick={() => setName(row.company.name)}
+                  >
+                    <td><b>{row.company.name}</b></td>
+                    <td>
+                      <label className="effect-slider financial">
+                        <input
+                          type="range"
+                          min={-effectLimit}
+                          max={effectLimit}
+                          step="1"
+                          value={row.effects.financial}
+                          onChange={(event) =>
+                            updateEffect(
+                              row.company.name,
+                              "financial",
+                              Number(event.target.value),
+                            )
+                          }
+                        />
+                        <strong>{row.effects.financial > 0 ? "+" : ""}{fa(row.effects.financial, 0)}٪</strong>
+                      </label>
+                    </td>
+                    <td>
+                      <label className="effect-slider market">
+                        <input
+                          type="range"
+                          min={-effectLimit}
+                          max={effectLimit}
+                          step="1"
+                          value={row.effects.market}
+                          onChange={(event) =>
+                            updateEffect(
+                              row.company.name,
+                              "market",
+                              Number(event.target.value),
+                            )
+                          }
+                        />
+                        <strong>{row.effects.market > 0 ? "+" : ""}{fa(row.effects.market, 0)}٪</strong>
+                      </label>
+                    </td>
+                    <td>
+                      <span className="effective-score-pair">
+                        <i>مالی {fa(row.financial)}</i>
+                        <i>بازار {fa(row.market)}</i>
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="reset-effect"
+                        disabled={!row.effects.financial && !row.effects.market}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          updateEffect(row.company.name, "financial", 0);
+                          const next = {
+                            ...managementEffects,
+                            [row.company.name]: { financial: 0, market: 0 },
+                          };
+                          persistEffects(next);
+                        }}
+                      >بازنشانی</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <footer>
+            <ShieldCheck />
+            <span>دامنه هر تعدیل از منفی سقف تا مثبت سقف است و امتیاز نهایی همیشه در بازه صفر تا ده باقی می‌ماند.</span>
+          </footer>
+        </section>
+      )}
       <section className="matrix-layout">
         <article className="panel matrix-panel premium-matrix">
           <div className="matrix-y-title">
@@ -1955,12 +2165,14 @@ function McKinseyView({ companies }: { companies: Company[] }) {
           </div>
           <dl>
             <div>
-              <dt>امتیاز واقعی مالی</dt>
+              <dt>امتیاز مؤثر مالی</dt>
               <dd>{fa(active?.financial)}</dd>
+              <small>مرجع {fa(active?.baseFinancial)} · اثر {active?.effects.financial ? `${active.effects.financial > 0 ? "+" : ""}${fa(active.effects.financial, 0)}٪` : "بدون تعدیل"}</small>
             </div>
             <div>
-              <dt>امتیاز واقعی بازار</dt>
+              <dt>امتیاز مؤثر بازار</dt>
               <dd>{fa(active?.market)}</dd>
+              <small>مرجع {fa(active?.baseMarket)} · اثر {active?.effects.market ? `${active.effects.market > 0 ? "+" : ""}${fa(active.effects.market, 0)}٪` : "بدون تعدیل"}</small>
             </div>
           </dl>
           <div className="decision-trace">
@@ -1968,8 +2180,9 @@ function McKinseyView({ companies }: { companies: Company[] }) {
             <p>
               <b>منطق جایگاه</b>
               <span>
-                جایگاه از رتبه نسبی شرکت در میان پرتفوی، تحت سناریوی «
-                {lensLabel}» و امتیاز کل جذابیت بازار تعیین شده است.
+                جایگاه از رتبه نسبی امتیازهای مؤثر در میان پرتفوی، تحت سناریوی «
+                {lensLabel}» تعیین شده است؛ امتیازهای مرجع و اثر مدیریت جداگانه
+                قابل مشاهده‌اند.
               </span>
             </p>
           </div>
