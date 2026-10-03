@@ -47,7 +47,7 @@ test('manager-selected waterfall changes actual source usage and keeps baseline 
  const baseline=allocateCapital({year:1406,financialInput:financial,projects:[project]});
  const changed=allocateCapital({year:1406,financialInput:financial,projects:[project],sourcePolicy:{orders:{[project.needType]:order}}});
  assert.equal(baseline.used.longDebt,100);assert.equal(changed.used.internal,100);
- assert.deepEqual(SOURCE_WATERFALL[project.needType],['longDebt','internal','partner','disposal']);
+ assert.deepEqual(SOURCE_WATERFALL[project.needType],['longDebt','internal','partner','disposal','shortDebt']);
  assert.equal(changed.valid,true);
 });
 test('custom policy cannot bypass debt ceiling, rate or minimum-execution rollback',()=>{

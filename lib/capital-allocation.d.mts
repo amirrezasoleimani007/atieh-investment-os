@@ -78,4 +78,5 @@ export function allocationSourceRows(output: CapitalOutput): {
 }[];
 
 export type SourcePolicy = {liquidityMode?: "block"|"restricted"; liquidityReason?:string; liquiditySources?:FundingSource[];orders?: Record<string, FundingSource[]>; dedicatedFirst?: boolean; reason?: string; updatedAt?: string};
+export function normalizedSourceOrder(needType: string, order?: FundingSource[]): FundingSource[];
 export function validateSourcePolicy(policy?: SourcePolicy): boolean;

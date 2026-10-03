@@ -24,8 +24,11 @@ test("ظرفیت مالی نمونه اکسل v13 دقیقاً بازتولید 
 });
 
 test("آبشار شش نوع نیاز با مستند رسمی v13 یکسان است", () => {
-  assert.deepEqual(SOURCE_WATERFALL["سرمایه در گردش"], ["shortDebt", "internal", "longDebt", "partner"]);
-  assert.deepEqual(SOURCE_WATERFALL["سرمایه‌گذاری مالی / پرتفویی"], ["internal", "partner", "disposal", "longDebt"]);
+  const allSources = ["internal", "shortDebt", "longDebt", "partner", "disposal"].sort();
+  assert.equal(Object.keys(SOURCE_WATERFALL).length, 6);
+  for (const order of Object.values(SOURCE_WATERFALL)) assert.deepEqual([...order].sort(), allSources);
+  assert.deepEqual(SOURCE_WATERFALL["سرمایه در گردش"], ["shortDebt", "internal", "partner", "longDebt", "disposal"]);
+  assert.deepEqual(SOURCE_WATERFALL["سرمایه‌گذاری مالی / پرتفویی"], ["internal", "disposal", "partner", "longDebt", "shortDebt"]);
 });
 
 test("نمونه 1406 اکسل: 1700 اجرا و ترکیب منابع 400/600/300/400", () => {
