@@ -17,6 +17,7 @@ import {
   MAX_MANAGEMENT_EFFECT,
   normalizeManagementAdjustments,
 } from "@/lib/management-adjustment.mjs";
+import { financialScenarioScore } from "@/lib/financial-scenario.mjs";
 import {
   Activity,
   ArrowLeft,
@@ -521,7 +522,7 @@ const normalize = (v: string) =>
 
 const compact = formatFinancialValue;
 function scoreOf(c: FinancialCompany | Company, lens: string) {
-  return lens === "score" ? c.score : (c.dimensions[lens]?.score ?? null);
+  return financialScenarioScore(c, lens);
 }
 function matrixCell(financial: number, market: number) {
   const mb = market >= 6.67 ? 0 : market >= 3.34 ? 1 : 2;
@@ -1947,7 +1948,11 @@ function McKinseyView({ companies }: { companies: Company[] }) {
               </button>
             ))}
           </div>
-          <small>جایگاه بر اساس امتیاز مستقیم مالی و امتیاز کل بازار تعیین می‌شود</small>
+          <small>
+            {lens === "score"
+              ? "جایگاه بر اساس امتیاز کل مالی و امتیاز کل بازار تعیین می‌شود"
+              : `«${lensLabel}» امتیاز ترکیبی شش‌بُعدی با تأکید ۳۵٪ بر مؤلفه منتخب است`}
+          </small>
         </div>
         <div className="selector-field">
           <label>شرکت منتخب</label>
@@ -2152,7 +2157,9 @@ function McKinseyView({ companies }: { companies: Company[] }) {
             <div>
               <dt>امتیاز مؤثر مالی</dt>
               <dd>{fa(active?.financial)}</dd>
-              <small>مرجع {fa(active?.baseFinancial)} · اثر {active?.effects.financial ? `${active.effects.financial > 0 ? "+" : ""}${fa(active.effects.financial, 0)}٪` : "بدون تعدیل"}</small>
+              <small>
+                کل مالی {fa(selected?.score)} · سناریوی {lensLabel} {fa(active?.baseFinancial)} · اثر {active?.effects.financial ? `${active.effects.financial > 0 ? "+" : ""}${fa(active.effects.financial, 0)}٪` : "بدون تعدیل"}
+              </small>
             </div>
             <div>
               <dt>امتیاز مؤثر بازار</dt>
