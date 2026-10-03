@@ -528,14 +528,6 @@ function matrixCell(financial: number, market: number) {
   const fb = financial >= 6.67 ? 0 : financial >= 3.34 ? 1 : 2;
   return mb * 3 + fb + 1;
 }
-function percentile(values: number[], current: number) {
-  const less = values.filter((v) => v < current).length;
-  const equal = values.filter((v) => Math.abs(v - current) < 1e-9).length;
-  return values.length <= 1
-    ? 5
-    : 1.5 + (7 * (less + 0.5 * (equal - 1))) / (values.length - 1);
-}
-
 type DonutSegment = { label: string; value: number; color: string };
 function SegmentedDonut({
   title,
@@ -1917,14 +1909,6 @@ function McKinseyView({ companies }: { companies: Company[] }) {
       effects,
     };
   });
-  const financialValues = adjustedScores
-      .map((row) => row.financial)
-      .filter((v): v is number => v != null),
-    marketValues = adjustedScores
-      .map((row) => row.market)
-      .filter((v): v is number => v != null);
-  const compactSpread = (values: number[], value: number) =>
-    5 + (percentile(values, value) - 5) * 0.9;
   const points = adjustedScores
     .map((row) => {
       const { financial, market } = row;
@@ -1934,8 +1918,8 @@ function McKinseyView({ companies }: { companies: Company[] }) {
             ...row,
             financial,
             market,
-            displayFinancial: compactSpread(financialValues, financial),
-            displayMarket: compactSpread(marketValues, market),
+            displayFinancial: financial,
+            displayMarket: market,
           };
     })
     .filter((p): p is NonNullable<typeof p> => p != null);
@@ -1963,7 +1947,7 @@ function McKinseyView({ companies }: { companies: Company[] }) {
               </button>
             ))}
           </div>
-          <small>پراکندگی علمی پیش‌فرض نرم‌افزار اعمال شده است</small>
+          <small>جایگاه بر اساس امتیاز مستقیم مالی و امتیاز کل بازار تعیین می‌شود</small>
         </div>
         <div className="selector-field">
           <label>شرکت منتخب</label>
@@ -2181,9 +2165,9 @@ function McKinseyView({ companies }: { companies: Company[] }) {
             <p>
               <b>منطق جایگاه</b>
               <span>
-                جایگاه از رتبه نسبی امتیازهای مؤثر در میان پرتفوی، تحت سناریوی «
-                {lensLabel}» تعیین شده است؛ امتیازهای مرجع و اثر مدیریت جداگانه
-                قابل مشاهده‌اند.
+                جایگاه مستقیماً از امتیاز مؤثر مالی در سناریوی «{lensLabel}» و
+                امتیاز کل بازار فایل مرجع تعیین شده است. تعدیل هر شرکت فقط همان
+                شرکت را جابه‌جا می‌کند.
               </span>
             </p>
           </div>

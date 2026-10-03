@@ -22,3 +22,14 @@ test("configurable limit never exceeds twenty percent", () => {
     الف: { financial: 10, market: -10 },
   });
 });
+
+test("changing one company never changes another company's score", () => {
+  const base = { الف: 6, ب: 7 };
+  const beforeB = applyManagementAdjustment(base.ب, 0);
+  const after = {
+    الف: applyManagementAdjustment(base.الف, 20),
+    ب: applyManagementAdjustment(base.ب, 0),
+  };
+  assert.ok(Math.abs(after.الف - 7.2) < 1e-12);
+  assert.equal(after.ب, beforeB);
+});
