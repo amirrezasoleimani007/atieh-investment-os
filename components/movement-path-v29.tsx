@@ -36,9 +36,6 @@ import CapitalAllocation from "@/components/capital-allocation";
 import { calculateStrategicFit } from "@/lib/strategic-fit.mjs";
 import { priorityScore } from "@/lib/priority-score.mjs";
 import {
-  DEFAULT_FINANCIAL_INPUT,
-} from "@/lib/capital-allocation.mjs";
-import {
   CONDITIONS,
   HORIZONS,
   ISIC_PRESETS,
@@ -104,6 +101,7 @@ type BaseState = {
 type CapitalState = {
   evaluations?: import("@/lib/allocation-evaluations.mjs").AllocationEvaluation[];
   sourcePolicies?: Record<string,import("@/lib/capital-allocation.mjs").SourcePolicy>;
+  liquidityPoliciesByYear?: Record<string,Pick<import("@/lib/capital-allocation.mjs").SourcePolicy,"liquidityMode"|"liquidityReason"|"liquiditySources">>;
   financialByYear: Record<number, Record<string, number>>;
   financialStatusByYear?: Record<number,"sample"|"draft"|"confirmed">;
   portfolioActions: Record<
@@ -153,7 +151,7 @@ type CapitalCase = {
 };
 type Scenario = { id: string; name: string; base: BaseState; completed: Stage[]; reviewed?: Partial<Record<Stage,string>>; revision: number; updatedAt: string };
 type Snapshot = { id: string; scenarioId: string; name: string; revision: number; createdAt: string; dataSnapshot: string; policy?: BaseState; plans: SnapshotPlan[] };
-type State = { archivedScenarioIds?:string[]; compositionMode?:"single"|"combined"; recoveryRequired?:boolean; lastCapitalYear?:number; version: 31; base: BaseState; capital: CapitalState; activeScenarioId: string; scenarios: Scenario[]; snapshots: Snapshot[]; selectedSnapshots: string[]; conflictChoices: Record<string,string> };
+type State = { exportedAt?:string;backupScope?:string; archivedScenarioIds?:string[]; compositionMode?:"single"|"combined"; recoveryRequired?:boolean; lastCapitalYear?:number; version: 31; base: BaseState; capital: CapitalState; activeScenarioId: string; scenarios: Scenario[]; snapshots: Snapshot[]; selectedSnapshots: string[]; conflictChoices: Record<string,string> };
 function prepareCapital(state:State):State {
   const archived=new Set(state.archivedScenarioIds??[]);
   const removed=new Set(state.snapshots.filter(s=>archived.has(s.scenarioId)).map(s=>s.id));
@@ -210,12 +208,12 @@ const horizonLabel = (key: string) =>
 
 function initialCapital(portfolio: CurrentAsset[]): CapitalState {
   return {
+    sourcePolicies:{},
+    liquidityPoliciesByYear:{},
     financialByYear: Object.fromEntries(
       YEARS.map((year) => [
         year,
-        {
-          ...DEFAULT_FINANCIAL_INPUT,
-        },
+        {},
       ]),
     ),
     portfolioActions: Object.fromEntries(
@@ -284,7 +282,7 @@ function hydrate(
       validateScenarioBackup(workspace);
       return {...workspace, base: migrateEntryRanks(restoreMovementState(workspace.base, rows, activities) as BaseState),
         scenarios:workspace.scenarios.map((s:Scenario)=>({...s,base:migrateEntryRanks(restoreMovementState(s.base,rows,activities) as BaseState)})),
-        capital: {...defaults, ...workspace.capital}, conflictChoices: workspace.conflictChoices ?? {}};
+        capital: {...defaults, ...workspace.capital,liquidityPoliciesByYear:workspace.capital.liquidityPoliciesByYear??{}}, conflictChoices: workspace.conflictChoices ?? {}};
     }
     if(localStorage.getItem("ips-scenario-workspace-v31")) throw new Error("invalid workspace");
   } catch {
@@ -457,6 +455,9 @@ export default function MovementPathV29({
   const [importMode,setImportMode]=useState<"merge"|"replace">("merge");
   const [canUndoRestore,setCanUndoRestore]=useState(false);
   const [exportFile,setExportFile]=useState<{url:string;name:string;content:string}|null>(null);
+  const [saveStatus,setSaveStatus]=useState("در حال بازیابی اطلاعات…");
+  const [lastSavedAt,setLastSavedAt]=useState<string|null>(null);
+  const [lastBackupAt,setLastBackupAt]=useState<string|null>(null);
 
   useEffect(()=>{
     if(!pendingImport)return;
@@ -488,8 +489,8 @@ export default function MovementPathV29({
   }, [rows, masterData, currentPortfolio]);
   useEffect(() => {
     if (ready && !state.recoveryRequired) {
-      try {localStorage.setItem("ips-scenario-workspace-v31", JSON.stringify(serialized(state)));}
-      catch {queueMicrotask(()=>setNotice("ذخیره خودکار انجام نشد؛ فضای مرورگر کافی نیست. پیش از خروج، فایل پشتیبان کامل را دانلود کنید."));}
+      try {localStorage.setItem("ips-scenario-workspace-v31", JSON.stringify(serialized(state)));queueMicrotask(()=>{setSaveStatus("تغییرات در این مرورگر ذخیره شد");setLastSavedAt(new Date().toISOString());});}
+      catch {queueMicrotask(()=>{setSaveStatus("ذخیره ناموفق؛ پشتیبان دانلود کنید");setNotice("ذخیره خودکار انجام نشد؛ فضای مرورگر کافی نیست. پیش از خروج، فایل پشتیبان کامل را دانلود کنید.");});}
     }
   }, [state, ready]);
 
@@ -699,18 +700,24 @@ export default function MovementPathV29({
         scenarios:old.scenarios.map(s=>s.id===old.activeScenarioId?{...s,revision:s.revision+1,updatedAt:new Date().toISOString()}:s),
       };
     });
-  const exportPolicy = () => {
-    const content=state.recoveryRequired ? localStorage.getItem("ips-workspace-recovery-v34")??"null" : JSON.stringify({...serialized(state),exportedAt:new Date().toISOString(),dataSnapshot},null,2);
+  const downloadBackup = (content:string,name:string) => {
     const url=URL.createObjectURL(new Blob([content],{type:"application/json"}));
     if(exportFile)URL.revokeObjectURL(exportFile.url);
-    setExportFile({url,name:"ips-scenarios-v37.json",content});
+    setExportFile({url,name,content});
+    const link=document.createElement("a");link.href=url;link.download=name;
+    document.body.appendChild(link);link.click();link.remove();
+    setLastBackupAt(new Date().toISOString());
+    setNotice("درخواست دانلود ارسال شد؛ فایل را در فهرست دانلودهای مرورگر بررسی کنید. در صورت مسدودشدن، از دانلود مجدد استفاده کنید.");
+  };
+  const backupStamp = () => new Date().toISOString().replace(/[:.]/g,"-");
+  const exportPolicy = () => {
+    const content=state.recoveryRequired ? localStorage.getItem("ips-workspace-recovery-v34")??"null" : JSON.stringify({...serialized(state),exportedAt:new Date().toISOString(),dataSnapshot},null,2);
+    downloadBackup(content,`IPS-پشتیبان-کامل-${backupStamp()}.json`);
   };
   const exportScenario = (id:string) => {
     const backup=scenarioBackup(serialized(state),id);
-    const blob=new Blob([JSON.stringify({...backup,dataSnapshot},null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;
     const name=backup.scenarios[0].name.replace(/[^\p{L}\p{N} _-]/gu,"_");
-    link.download=`سناریو-${name}.json`;if(exportFile)URL.revokeObjectURL(exportFile.url);setExportFile({url,name:link.download,content:JSON.stringify({...backup,dataSnapshot},null,2)});
+    downloadBackup(JSON.stringify({...backup,dataSnapshot},null,2),`IPS-سناریو-${name}-نسخه-${backup.scenarios[0].revision}-${backupStamp()}.json`);
   };
   const manageArchive = (id:string,removed:boolean) => {
     setState(old=>prepareCapital(archiveScenario(serialized(old),id,removed)));
@@ -754,8 +761,8 @@ export default function MovementPathV29({
       setState(next);setCompositionMode(next.compositionMode??"single");setActiveYear(next.lastCapitalYear??1406);setCanUndoRestore(false);localStorage.removeItem("ips-workspace-before-restore-v37");setNotice("اطلاعات پیش از آخرین بازیابی بازگردانده شد.");
     }catch{setNotice("بازگردانی انجام نشد؛ اطلاعات جاری حفظ شده است.");}
   };
-  const downloadReady = exportFile && <div className="scenario-download-ready" role="status"><div><b>فایل پشتیبان آماده است</b><span>{exportFile.name}</span></div><a href={exportFile.url} download={exportFile.name}>دانلود فایل پشتیبان</a><button onClick={()=>{URL.revokeObjectURL(exportFile.url);setExportFile(null);}}>بستن</button><details><summary>مشاهده محتوای فایل برای کپی دستی</summary><textarea aria-label="محتوای فایل پشتیبان" readOnly value={exportFile.content}/></details></div>;
-  const importDialog = pendingImport && <div className="scenario-restore-overlay"><section ref={restoreDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="scenario-restore-title" className="scenario-restore-panel"><header><Upload/><h2 id="scenario-restore-title">بازیابی سناریوها</h2></header><p>{pendingImport.filename}</p><div className="scenario-backup-stats"><span><b>{pendingImport.workspace.scenarios.length.toLocaleString("fa-IR")}</b> سناریو</span><span><b>{pendingImport.workspace.snapshots.length.toLocaleString("fa-IR")}</b> خروجی ثبت‌شده</span><span><b>{Object.keys(pendingImport.workspace.capital.cases).length.toLocaleString("fa-IR")}</b> پرونده مالی</span></div><label><input type="radio" name="restoreMode" checked={importMode==="merge"} onChange={()=>setImportMode("merge")}/><span><b>افزودن سناریوها به اطلاعات جاری</b><small>سناریوها و پرونده‌های وابسته با شناسه مستقل اضافه می‌شوند. منابع سالانه، طرح‌های مستقل و تصمیم‌های جاری تغییر نمی‌کنند.</small></span></label><label><input type="radio" name="restoreMode" checked={importMode==="replace"} onChange={()=>setImportMode("replace")}/><span><b>بازیابی کامل و جایگزینی اطلاعات جاری</b><small>همه سناریوها، منابع، پرونده‌ها و تصمیم‌های ثبت‌شده فایل بازیابی می‌شوند. اطلاعات قبل از بازیابی برای بازگردانی نگهداری می‌شود.</small></span></label><footer><button onClick={restoreBackup}>تأیید بازیابی</button><button onClick={()=>setPendingImport(null)}>انصراف</button><button onClick={exportPolicy}>دانلود پشتیبان اطلاعات جاری</button></footer>{notice&&<p role="alert">{notice}</p>}</section></div>;
+  const downloadReady = exportFile && <div className="scenario-download-ready" role="status"><div><b>درخواست دانلود فایل پشتیبان ارسال شد</b><span>{exportFile.name}</span></div><a href={exportFile.url} download={exportFile.name}>دانلود مجدد فایل</a><button onClick={()=>{URL.revokeObjectURL(exportFile.url);setExportFile(null);}}>بستن</button><details><summary>مشاهده محتوای فایل برای کپی دستی</summary><textarea aria-label="محتوای فایل پشتیبان" readOnly value={exportFile.content}/></details></div>;
+  const importDialog = pendingImport && <div className="scenario-restore-overlay"><section ref={restoreDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="scenario-restore-title" className="scenario-restore-panel"><header><Upload/><h2 id="scenario-restore-title">بازیابی سناریوها</h2></header><p>{pendingImport.filename}</p><div className="scenario-import-overview"><b>{pendingImport.workspace.backupScope==="scenario"?"فایل یک سناریو":"پشتیبان کامل"}</b><span>قالب داده سازگار با نسخه ۳۱ · تاریخ خروجی: {pendingImport.workspace.exportedAt?new Date(pendingImport.workspace.exportedAt).toLocaleString("fa-IR",{timeZone:"Asia/Tehran"}):"در فایل ثبت نشده"}</span><span>سناریوها: {pendingImport.workspace.scenarios.map(s=>s.name).join("، ")}</span><span>سال‌های مالی: {Object.keys(pendingImport.workspace.capital.financialByYear).map(y=>Number(y).toLocaleString("fa-IR",{useGrouping:false})).join("، ")||"ثبت نشده"}</span><small>در حالت افزودن، اطلاعات مالی عمومی و تصمیم‌های فعلی جایگزین نمی‌شوند. جایگزینی کامل، همه اطلاعات جاری را تغییر می‌دهد و نقطه بازگشت ایجاد می‌کند.</small></div><div className="scenario-backup-stats"><span><b>{pendingImport.workspace.scenarios.length.toLocaleString("fa-IR")}</b> سناریو</span><span><b>{pendingImport.workspace.snapshots.length.toLocaleString("fa-IR")}</b> خروجی ثبت‌شده</span><span><b>{Object.keys(pendingImport.workspace.capital.cases).length.toLocaleString("fa-IR")}</b> پرونده مالی</span></div><label><input type="radio" name="restoreMode" checked={importMode==="merge"} onChange={()=>setImportMode("merge")}/><span><b>افزودن سناریوها به اطلاعات جاری</b><small>سناریوها و پرونده‌های وابسته با شناسه مستقل اضافه می‌شوند. منابع سالانه، طرح‌های مستقل و تصمیم‌های جاری تغییر نمی‌کنند.</small></span></label><label><input type="radio" name="restoreMode" checked={importMode==="replace"} onChange={()=>setImportMode("replace")}/><span><b>بازیابی کامل و جایگزینی اطلاعات جاری</b><small>همه سناریوها، منابع، پرونده‌ها و تصمیم‌های ثبت‌شده فایل بازیابی می‌شوند. اطلاعات قبل از بازیابی برای بازگردانی نگهداری می‌شود.</small></span></label><footer><button onClick={restoreBackup}>تأیید بازیابی</button><button onClick={()=>setPendingImport(null)}>انصراف</button><button onClick={exportPolicy}>دانلود پشتیبان اطلاعات جاری</button></footer>{notice&&<p role="alert">{notice}</p>}</section></div>;
 
   if(!ready)return <main className="capital-route" dir="rtl"><p role="status">در حال بازیابی سناریوها و پرونده‌های ذخیره‌شده…</p></main>;
 
@@ -796,7 +803,7 @@ export default function MovementPathV29({
           {merged.conflicts.length>0 && <strong>تا تعیین مرجع تعارض‌ها، اجرای تخصیص این سبد متوقف است.</strong>}
           <small>پروژه‌های مستقل در همه ارزیابی‌ها مشترک‌اند؛ پرونده‌های سناریویی برای هر سبد جدا نگهداری می‌شوند. در سبد مشترک، درصدهای برنامه ورود سهم مالی جدید تولید نمی‌کنند؛ تخصیص بر نیاز ریالی پرونده‌ها انجام می‌شود.</small>
         </section>
-        {state.snapshots.length>0&&<ScenarioCapitalComparison sourcePolicies={state.capital.sourcePolicies} snapshots={state.snapshots.filter(s=>!(state.archivedScenarioIds??[]).includes(s.scenarioId))} year={activeYear} cases={state.capital.cases} financial={state.capital.financialByYear[activeYear]??{}} actions={Object.values(state.capital.portfolioActions)}/>}
+        {state.snapshots.length>0&&<ScenarioCapitalComparison sourcePolicies={state.capital.sourcePolicies} liquidityPoliciesByYear={state.capital.liquidityPoliciesByYear} snapshots={state.snapshots.filter(s=>!(state.archivedScenarioIds??[]).includes(s.scenarioId))} year={activeYear} cases={state.capital.cases} financial={state.capital.financialByYear[activeYear]??{}} actions={Object.values(state.capital.portfolioActions)}/>}
         <section className="capital-route-surface">
           <CapitalAllocation
             activeYear={activeYear}
@@ -860,7 +867,7 @@ export default function MovementPathV29({
       {importDialog}
       {canUndoRestore&&<button className="scenario-undo" onClick={undoRestore}>بازگردانی اطلاعات پیش از آخرین بازیابی</button>}
       {state.recoveryRequired&&<div className="capital-blocked" role="alert">داده ذخیره‌شده نیازمند بازیابی است؛ نسخه اصلی حفظ شده و ذخیره خودکار متوقف است. از «ورود فایل» برای بازیابی نسخه معتبر استفاده کنید.</div>}
-      <ScenarioControls archivedIds={state.archivedScenarioIds??[]} onArchive={manageArchive} onRename={(id,name)=>{const next=renameScenario(serialized(state),id,name);setState(next);}} onExport={exportScenario} onBackup={exportPolicy} onImport={()=>fileRef.current?.click()} onOpenCapital={openScenarioCapital} scenarios={serialized(state).scenarios} activeId={state.activeScenarioId} onSelect={changeScenario} onCreate={createScenario} onFreeze={()=>setStage("entry")} snapshots={state.snapshots} />
+      <ScenarioControls saveStatus={state.recoveryRequired?"ذخیره متوقف؛ نیازمند بازیابی":saveStatus} lastSavedAt={lastSavedAt} lastBackupAt={lastBackupAt} archivedIds={state.archivedScenarioIds??[]} onArchive={manageArchive} onRename={(id,name)=>{const next=renameScenario(serialized(state),id,name);setState(next);}} onExport={exportScenario} onBackup={exportPolicy} onImport={()=>fileRef.current?.click()} onOpenCapital={openScenarioCapital} scenarios={serialized(state).scenarios} activeId={state.activeScenarioId} onSelect={changeScenario} onCreate={createScenario} onFreeze={()=>setStage("entry")} snapshots={state.snapshots} />
       {!activeScenario ? <div className="scenario-required"><h2>ابتدا نام سناریو را ثبت کنید</h2><p>هر تصمیم و برنامه ورود به همین سناریو تعلق خواهد داشت.</p></div> : <>
       <div className="decision-context"><div><b>{activeScenario.name}</b><span>نسخه {fa(activeScenario.revision,0)} · {STAGES.find(s=>s.id===stage)?.title}</span></div><span className={activeScenario.completed.includes(stage)?"confirmed":"pending"}>{activeScenario.completed.includes(stage)?"تأیید شده":stageInputsReady?"ورودی آماده؛ نیازمند تأیید":"ورودی نیازمند تکمیل"}</span><span>{fa(activeScenario.completed.length,0)} از ۴ مرحله تأیید شده</span></div>
       <MovementMeetingPrint scenario={activeScenario.name} revision={activeScenario.revision} sectors={records} activities={isic.activities as IsicActivity[]} board={base.board} activityBoard={base.activityBoard} weights={isicWeights}/>

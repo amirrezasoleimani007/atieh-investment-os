@@ -6,6 +6,7 @@ import {
   FUNDING_SOURCES,
   SOURCE_WATERFALL,
   normalizedSourceOrder,
+  sourcePolicyRequiresReason,
   type CapitalOutput,
   type FundingSource,
   type SourcePolicy,
@@ -106,8 +107,9 @@ export default function SourceOrderPolicy({
       liquidityMode: policy.liquidityMode,
       liquidityReason: policy.liquidityReason,
       liquiditySources: policy.liquiditySources,
-      dedicatedFirst: policy.dedicatedFirst,
+      dedicatedFirst: true,
     });
+  const reasonRequired=sourcePolicyRequiresReason(policy);
 
   return (
     <section className="source-order-policy source-policy-v2">
@@ -157,7 +159,7 @@ export default function SourceOrderPolicy({
 
       <div className="source-order-toolbar policy-options">
         <label><input type="checkbox" checked={policy.dedicatedFirst !== false} onChange={(event) => onChange({ ...policy, dedicatedFirst: event.target.checked })} /><span><Check /> منبع اختصاصی هر طرح پیش از منابع عمومی بررسی شود</span></label>
-        <label className="source-policy-reason"><span>دلیل تغییر سیاست</span><input value={policy.reason ?? ""} onChange={(event) => onChange({ ...policy, reason: event.target.value })} placeholder="مثلاً: مصوبه هیئت‌مدیره، محدودیت نقدینگی یا شرط سهامدار" /></label>
+        <label className="source-policy-reason"><span>دلیل تغییر سیاست {reasonRequired&&<b>الزامی برای تصویب</b>}</span><input aria-invalid={reasonRequired&&!policy.reason?.trim()} value={policy.reason ?? ""} onChange={(event) => onChange({ ...policy, reason: event.target.value })} placeholder="مثلاً: مصوبه هیئت‌مدیره، محدودیت نقدینگی یا شرط سهامدار" /></label>
       </div>
 
       <div className="source-policy-impact"><h4>اثر زنده سیاست بر تأمین طرح‌ها</h4>{output.results.map((item) => { const baseline = baselineOutput.results.find((row) => row.id === item.id); const delta = item.executed - (baseline?.executed ?? 0); return <p key={item.id}><b>{item.name}</b><span>{fa(item.executed)} میلیارد تومان · {Math.abs(delta) < 0.01 ? "میزان تأمین بدون تغییر" : `${delta > 0 ? "افزایش" : "کاهش"} ${fa(Math.abs(delta))}`}</span></p>; })}</div>

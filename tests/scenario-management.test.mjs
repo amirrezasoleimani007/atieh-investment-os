@@ -34,6 +34,13 @@ test('invalid files cannot pass restore validation',()=>{
  for(const mutate of [w=>{w.scenarios.push(w.scenarios[0])},w=>{w.snapshots[0].scenarioId='missing'},w=>{w.selectedSnapshots=['missing']},w=>{w.base.vision.core=NaN},w=>{delete w.capital.financialByYear},w=>{w.snapshots[0].plans[0].year=9999},w=>{w.capital.sourcePolicies['s-a']={orders:{'سرمایه در گردش':['internal','internal']}}}]){const w=fixture();mutate(w);assert.throws(()=>validateScenarioBackup(w));}
  const malicious=JSON.parse('{"__proto__":{"unsafe":true}}');assert.throws(()=>validateScenarioBackup({...fixture(),unsafe:malicious}));
 });
+
+test('negative or incomplete confirmed finance cannot enter through restore',()=>{
+ const negative=fixture();negative.capital.financialByYear[1406].cashStart=-1;
+ assert.throws(()=>validateScenarioBackup(negative));
+ const incomplete=fixture();incomplete.capital.financialStatusByYear={1406:'confirmed'};incomplete.capital.financialByYear[1406]={partnerCapacity:100};
+ assert.throws(()=>validateScenarioBackup(incomplete));
+});
 test('renaming updates labels without recalculating plans or changing model scores',()=>{
  const w=fixture();const renamed=renameScenario(w,'a','رشد گزینشی');assert.equal(renamed.snapshots[0].name,'رشد گزینشی');assert.deepEqual(renamed.snapshots[0].plans,w.snapshots[0].plans);assert.deepEqual(renamed.capital,w.capital);assert.throws(()=>renameScenario(w,'a','سناریو b'));assert.throws(()=>renameScenario(w,'a',' '));
 });

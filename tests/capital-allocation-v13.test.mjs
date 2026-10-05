@@ -6,6 +6,9 @@ import {
   allocateCapital,
   computeFinancialCapacity,
   reliableDisposalCapacity,
+  validateFinancialInput,
+  validateInvestmentCase,
+  sourcePolicyRequiresReason,
 } from "../lib/capital-allocation.mjs";
 
 const sampleProjects = [
@@ -80,4 +83,39 @@ test("کنترل‌های تطبیق نیاز، ظرفیت منبع و سقف ب
   const result = allocateCapital({ year: 1406, financialInput: V13_SAMPLE_FINANCIAL_INPUT, projects: sampleProjects });
   assert.deepEqual(result.checks, { needBalanced: true, sourceCapacity: true, debtCeiling: true, disposalReliableOnly: true });
   assert.ok(result.used.shortDebt + result.used.longDebt <= result.capacity.debtCeiling);
+});
+
+test("مقدار واردنشده با صفر واقعی یکسان نیست",()=>{
+  assert.equal(validateFinancialInput({}).valid,false);
+  assert.equal(validateFinancialInput(V13_SAMPLE_FINANCIAL_INPUT).valid,true);
+  const preview=allocateCapital({year:1406,financialInput:{},projects:sampleProjects});
+  assert.equal(preview.financialValidation.valid,false);
+  assert.equal(preview.investmentReady,false);
+  assert.equal(preview.valid,false);
+});
+
+test("منبعی که قبلاً در ورود نقد آمده دوباره تخصیص داده نمی‌شود",()=>{
+  const financial={...V13_SAMPLE_FINANCIAL_INPUT,reliableInflows:500,partnerCapacity:400,partnerIncludedInInflows:150,shortDebtIncludedInInflows:100};
+  const capacity=computeFinancialCapacity(financial);
+  assert.equal(capacity.partner,250);
+  assert.equal(capacity.shortDebt,500);
+  assert.equal(validateFinancialInput(financial).valid,true);
+  assert.equal(validateFinancialInput({...financial,partnerIncludedInInflows:600}).valid,false);
+});
+
+test("نیاز سالانه و مجموع برنامه چندساله از نیاز کل عبور نمی‌کند",()=>{
+  const family=[
+    {...sampleProjects[0],id:'a',opportunityKey:'x',runKey:'s',totalNeed:1000,annualNeed:600,year:1406},
+    {...sampleProjects[0],id:'b',opportunityKey:'x',runKey:'s',totalNeed:1000,annualNeed:500,year:1407},
+  ];
+  assert.equal(validateInvestmentCase(family[0],family).valid,false);
+  const corrected=family.map((p,index)=>({...p,annualNeed:index?400:600}));
+  assert.equal(validateInvestmentCase(corrected[0],corrected).valid,true);
+  assert.equal(validateInvestmentCase({...corrected[0],annualNeed:1100},corrected).valid,false);
+});
+
+test("تغییر تقدم منابع برای تصویب نیازمند دلیل است",()=>{
+  assert.equal(sourcePolicyRequiresReason({liquidityMode:'block'}),false);
+  assert.equal(sourcePolicyRequiresReason({orders:{'توسعه / CAPEX رشد':['internal','longDebt','partner','disposal','shortDebt']}}),true);
+  assert.equal(sourcePolicyRequiresReason({orders:{'توسعه / CAPEX رشد':[...SOURCE_WATERFALL['توسعه / CAPEX رشد']]}}),false);
 });

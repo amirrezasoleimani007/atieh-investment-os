@@ -26,8 +26,8 @@ import {
   FUNDING_SOURCES,
   NEED_TYPES,
   allocateCapital,
+  validateFinancialInput,
   V13_SAMPLE_FINANCIAL_INPUT,
-  DEFAULT_FINANCIAL_INPUT,
   type FundingSource,
 } from "@/lib/capital-allocation.mjs";
 import {evaluationSignature,freezeAllocationEvaluation} from "@/lib/allocation-evaluations.mjs";
@@ -85,6 +85,7 @@ type PlanOpportunity = EntryOpportunity & { share: number };
 type AllocationState = {
   evaluations?: import("@/lib/allocation-evaluations.mjs").AllocationEvaluation[];
   sourcePolicies?:Record<string,import("@/lib/capital-allocation.mjs").SourcePolicy>;
+  liquidityPoliciesByYear?:Record<string,Pick<import("@/lib/capital-allocation.mjs").SourcePolicy,"liquidityMode"|"liquidityReason"|"liquiditySources">>;
   financialByYear: Record<number, FinancialInput>;
   portfolioActions: Record<string, PortfolioAction>;
   cases: Record<string, InvestmentCase>;
@@ -117,6 +118,13 @@ const fundingFields = [
   ["totalNewDebtCeiling", "سقف کل بدهی جدید", false],
   ["partnerCapacity", "ظرفیت آورده سهامداران و شرکا", false],
 ] as const;
+const overlapFields = [
+  ["shortDebtIncludedInInflows", "اعتبار کوتاه‌مدت منظورشده در ورود نقد"],
+  ["longDebtIncludedInInflows", "بدهی میان/بلندمدت منظورشده در ورود نقد"],
+  ["partnerIncludedInInflows", "آورده منظورشده در ورود نقد"],
+  ["disposalIncludedInInflows", "مولدسازی منظورشده در ورود نقد"],
+] as const;
+const fundingPolicyOnly=(policy?:import("@/lib/capital-allocation.mjs").SourcePolicy)=>{const funding={...(policy??{})};delete funding.liquidityMode;delete funding.liquidityReason;delete funding.liquiditySources;return funding;};
 
 export default function CapitalAllocation({
   activeYear,
@@ -171,21 +179,25 @@ export default function CapitalAllocation({
     () => Object.values(state.cases).filter((item) => item.year === activeYear),
     [state.cases, activeYear],
   );
-  const sourcePolicy=useMemo(()=>({liquidityMode:"block" as const,...state.sourcePolicies?.[runKey]}),[state.sourcePolicies,runKey]);
-  const setSourcePolicy=(policy:import("@/lib/capital-allocation.mjs").SourcePolicy)=>onState({...state,sourcePolicies:{...state.sourcePolicies,[runKey]:{...policy,updatedAt:new Date().toISOString()}}});
+  const policyYearKey=`${runKey}:${activeYear}`;
+  const sourcePolicy=useMemo(()=>({liquidityMode:"block" as const,...fundingPolicyOnly(state.sourcePolicies?.[runKey]),...state.liquidityPoliciesByYear?.[policyYearKey]}),[state.sourcePolicies,state.liquidityPoliciesByYear,runKey,policyYearKey]);
+  const setSourcePolicy=(policy:import("@/lib/capital-allocation.mjs").SourcePolicy)=>{
+    const {liquidityMode="block",liquidityReason,liquiditySources,...fundingPolicy}=policy;
+    onState({...state,sourcePolicies:{...state.sourcePolicies,[runKey]:{...fundingPolicy,updatedAt:new Date().toISOString()}},liquidityPoliciesByYear:{...state.liquidityPoliciesByYear,[policyYearKey]:{liquidityMode,liquidityReason,liquiditySources}}});
+  };
   const output = useMemo(
     () =>
       allocateCapital({
         year: activeYear,
         financialInput: financial,
         portfolioActions: actions,
-        projects: blocked ? [] : cases,
+        projects: blocked ? [] : Object.values(state.cases),
         sourcePolicy,
       }),
-    [activeYear, financial, actions, cases, blocked,sourcePolicy],
+    [activeYear, financial, actions, state.cases, blocked,sourcePolicy],
   );
 
-  const baselineOutput=useMemo(()=>allocateCapital({year:activeYear,financialInput:financial,portfolioActions:actions,projects:blocked?[]:cases,sourcePolicy:{liquidityMode:sourcePolicy.liquidityMode,liquidityReason:sourcePolicy.liquidityReason,liquiditySources:sourcePolicy.liquiditySources}}),[activeYear,financial,actions,cases,blocked,sourcePolicy]);
+  const baselineOutput=useMemo(()=>allocateCapital({year:activeYear,financialInput:financial,portfolioActions:actions,projects:blocked?[]:Object.values(state.cases),sourcePolicy:{liquidityMode:sourcePolicy.liquidityMode,liquidityReason:sourcePolicy.liquidityReason,liquiditySources:sourcePolicy.liquiditySources}}),[activeYear,financial,actions,state.cases,blocked,sourcePolicy]);
   const annualOutputs = useMemo(
     () =>
       CAPITAL_YEARS.map((year) =>
@@ -194,10 +206,10 @@ export default function CapitalAllocation({
           financialInput: state.financialByYear[year] ?? {},
           portfolioActions: actions,
           projects: blockedYears.includes(year) ? [] : Object.values(state.cases),
-          sourcePolicy,
+          sourcePolicy:{liquidityMode:"block",...fundingPolicyOnly(state.sourcePolicies?.[runKey]),...state.liquidityPoliciesByYear?.[`${runKey}:${year}`]},
         }),
       ),
-    [actions, state.cases, state.financialByYear, blockedYears,sourcePolicy],
+    [actions, state.cases, state.financialByYear, blockedYears,state.sourcePolicies,state.liquidityPoliciesByYear,runKey],
   );
   const fundingRate = output.totalNeed
     ? output.totalExecuted / output.totalNeed
@@ -213,7 +225,7 @@ export default function CapitalAllocation({
     { full: 0, partial: 0, deferred: 0, incomplete: 0 },
   );
   const financeStatus=state.financialStatusByYear?.[activeYear]??"draft";
-  const executiveSignal = blocked ? "ابتدا تعارض بین خروجی‌های سناریوها را تعیین تکلیف کنید." : financeStatus !== "confirmed" ? "این خروجی پیش‌نمایش است؛ داده‌های مالی این سال هنوز به‌عنوان ورودی واقعی تأیید نشده‌اند." : cases.some(c=>c.financialReviewRequired) ? "ورودی مالی پرونده‌های منتقل‌شده از نسخه جدید یا مرحله بعد نیازمند بازبینی است؛ نتیجه فعلاً پیش‌نمایش است." : output.financial.reserveShortfall>0
+  const executiveSignal = blocked ? "ابتدا تعارض بین خروجی‌های سناریوها را تعیین تکلیف کنید." : !output.financialValidation.valid ? "ورودی‌های مالی سال کامل و معتبر نیستند؛ مقدار واردنشده با صفر واقعی یکسان تلقی نمی‌شود." : financeStatus !== "confirmed" ? "این خروجی پیش‌نمایش است؛ داده‌های مالی این سال هنوز به‌عنوان ورودی واقعی تأیید نشده‌اند." : cases.some(c=>c.financialReviewRequired) ? "ورودی مالی پرونده‌های منتقل‌شده از نسخه جدید یا مرحله بعد نیازمند بازبینی است؛ نتیجه فعلاً پیش‌نمایش است." : output.financial.reserveShortfall>0
     ? `کسری نقد و ذخیره نقد ${fa(output.financial.reserveShortfall,0)} میلیارد تومان است؛ ${output.liquidityRestricted?"تخصیص فقط با استثنای مصوبِ منابع محدود به طرح انجام می‌شود و به معنی سلامت نقدینگی گروه نیست.":"پیش از تصویب طرح‌های جدید، پوشش این کسری ضروری است."}` : output.reservationConflict ? "تعهدات رزروشده با ظرفیت منابع سازگار نیست؛ تخصیص متوقف است." : !output.results.length
     ? "هنوز پرونده‌ای برای تصمیم سرمایه‌گذاری این سال ثبت نشده است. ابتدا فرصت‌های منتخب مسیر حرکت را به پرونده اجرایی تبدیل کنید."
     : decisionCounts.incomplete > 0
@@ -228,17 +240,24 @@ export default function CapitalAllocation({
     output.results[0] ??
     null;
   const selectedCaseRecord = state.cases[selectedCase] ?? cases[0] ?? null;
+  const selectedFamily = selectedCaseRecord ? Object.values(state.cases).filter(item => item.opportunityKey===selectedCaseRecord.opportunityKey && item.sourceKind===selectedCaseRecord.sourceKind && (item.runKey??"")===(selectedCaseRecord.runKey??"")) : [];
+  const selectedScheduledNeed = selectedFamily.reduce((sum,item)=>sum+Math.max(0,item.annualNeed||0),0);
+  const selectedRemainingNeed = selectedCaseRecord ? Math.max(0,(selectedCaseRecord.totalNeed||0)-selectedScheduledNeed) : 0;
   const caseIds = new Set(cases.map((item) => item.opportunityKey));
 
-  const patchFinancial = (key: string, value: number) =>
+  const patchFinancial = (key: string, value: number | null) => {
+    const nextFinancial = { ...financial };
+    if (value == null || !Number.isFinite(value)) delete nextFinancial[key];
+    else nextFinancial[key] = Math.max(0, value);
     onState({
       ...state,
       financialStatusByYear:{...state.financialStatusByYear,[activeYear]:"draft"},
       financialByYear: {
         ...state.financialByYear,
-        [activeYear]: { ...financial, [key]: Math.max(0, value || 0) },
+        [activeYear]: nextFinancial,
       },
     });
+  };
   const patchAction = (index: number, patch: Partial<PortfolioAction>) => {
     const key = String(index);
     const current = state.portfolioActions[key] ?? {
@@ -294,6 +313,13 @@ export default function CapitalAllocation({
       cases: { ...state.cases, [id]: { ...current, ...patch } },
     });
   };
+  const patchTotalNeed = (record: InvestmentCase, totalNeed: number) => {
+    const next=Object.fromEntries(Object.entries(state.cases).map(([id,item])=>[
+      id,
+      item.opportunityKey===record.opportunityKey&&item.sourceKind===record.sourceKind&&(item.runKey??"")===(record.runKey??"") ? {...item,totalNeed} : item,
+    ]));
+    onState({...state,cases:next});
+  };
   const removeCase = (id: string) => {
     if(state.cases[id]?.sourceKind === "scenario" && !state.cases[id]?.continuationOf) {
       patchCase(id,{annualNeed:0,totalNeed:0,dedicatedAmount:0,economicNote:"",financialReviewRequired:true});
@@ -323,7 +349,13 @@ export default function CapitalAllocation({
     const copied={...current,id,year:effectiveCopyYear,entryYear:current.entryYear??current.year,continuationOf:current.continuationOf??current.id,financialReviewRequired:true,annualNeed:0,dedicatedAmount:0};
     onState({...state,cases:{...state.cases,[id]:copied}});onYear(effectiveCopyYear);setSelectedCase(id);setActionNotice("پرونده سال بعد ایجاد شد؛ نیاز سالانه را جدا وارد کنید تا منابع دوباره شماری نشوند.");
   };
-  const setFinanceMode=(kind:"sample"|"draft"|"confirmed")=>onState({...state,financialStatusByYear:{...state.financialStatusByYear,[activeYear]:kind},...(kind === "sample" ? {financialByYear:{...state.financialByYear,[activeYear]:{...V13_SAMPLE_FINANCIAL_INPUT}}} : kind === "draft" ? {financialByYear:{...state.financialByYear,[activeYear]:{...DEFAULT_FINANCIAL_INPUT}}}: {})});
+  const setFinanceMode=(kind:"sample"|"draft"|"confirmed")=>{
+    if(kind==="confirmed"){
+      const checked=validateFinancialInput(financial);
+      if(!checked.valid){setActionNotice(`تأیید ممکن نیست؛ ${checked.errors[0]??"ورودی‌های مالی را کامل کنید."}`);return;}
+    }
+    onState({...state,financialStatusByYear:{...state.financialStatusByYear,[activeYear]:kind},...(kind === "sample" ? {financialByYear:{...state.financialByYear,[activeYear]:{...V13_SAMPLE_FINANCIAL_INPUT}}} : kind === "draft" ? {financialByYear:{...state.financialByYear,[activeYear]:{}}}: {})});
+  };
 
   const evaluationInput={runKey,year:activeYear,contextName,financial,financeStatus,actions,projects:cases,sourcePolicy};
   const currentSignature=evaluationSignature(evaluationInput);
@@ -376,6 +408,7 @@ export default function CapitalAllocation({
         <p>امتیاز ورود حفظ می‌شود؛ اولویت طرح‌ها، ترتیب منابع و شروط اجرای هر طرح را مدیریت تعیین می‌کند. بازده اقتصادی از تخصیص منابع استنتاج نمی‌شود.</p>
       </section>
       <div className={`finance-status ${financeStatus}`}><ShieldCheck/><span>{financeStatus==="confirmed"?"ورودی مالی واقعی تأیید شده":financeStatus==="sample"?"داده نمونه آموزشی؛ قابل استناد برای تصمیم نهایی نیست":"ورودی مالی در انتظار بررسی و تأیید"}</span>{financeStatus!=="confirmed"&&<button onClick={()=>setView("capacity")}>بررسی منابع قابل اتکای سال</button>}</div>
+      {!output.financialValidation.valid&&<div className="capital-blocked" role="alert">ورودی مالی کامل نیست: {output.financialValidation.errors[0]} مقدار واردنشده با صفر واقعی یکسان نیست و ثبت تصمیم تأییدشده ممکن نخواهد بود.</div>}
       {blocked&&<div className="capital-blocked" role="alert">تخصیص تا حل تعارض سناریوها متوقف است؛ پرونده‌ها و منابع قابل ویرایش‌اند.</div>}
       {Object.values(output.reserved).some(v=>v>0)&&<div className="finance-status"><ShieldCheck/><span>{fa(Object.values(output.reserved).reduce((n,v)=>n+v,0),0)} میلیارد تومان تعهد رزروشده هنوز مصرف نشده است؛ در ظرفیت آزاد برای طرح‌های دیگر منظور نمی‌شود.</span></div>}
       {actionNotice&&<div className="movement-notice"><span>{actionNotice}</span><button onClick={()=>setActionNotice("")}>×</button></div>}
@@ -435,10 +468,11 @@ export default function CapitalAllocation({
                   <input
                     type="number"
                     min="0"
-                    value={financial[key] ?? 0}
-                    onChange={(event) =>
-                      patchFinancial(key, Number(event.target.value))
-                    }
+                    value={financial[key] ?? ""}
+                    onChange={(event) => patchFinancial(
+                      key,
+                      event.target.value === "" ? null : Number(event.target.value),
+                    )}
                   />
                 </label>
               ))}
@@ -457,13 +491,15 @@ export default function CapitalAllocation({
                       step={isRate ? "0.1" : "0.1"}
                       value={
                         isRate
-                          ? (financial[key] ?? 0) * 100
-                          : (financial[key] ?? 0)
+                          ? financial[key] == null ? "" : financial[key] * 100
+                          : financial[key] ?? ""
                       }
                       onChange={(event) =>
                         patchFinancial(
                           key,
-                          Number(event.target.value) / (isRate ? 100 : 1),
+                          event.target.value === ""
+                            ? null
+                            : Number(event.target.value) / (isRate ? 100 : 1),
                         )
                       }
                     />
@@ -471,6 +507,7 @@ export default function CapitalAllocation({
                   </div>
                 </label>
               ))}
+              <details className="capital-contribution-help"><summary>کنترل جلوگیری از دوباره‌شماری منابع</summary><p>اگر بخشی از بدهی، آورده یا مولدسازی قبلاً در «ورود نقد قابل اتکا» ثبت شده است، همان مبلغ را مشخص کنید. موتور آن را از ظرفیت مستقل منبع کسر می‌کند.</p>{overlapFields.map(([key,label])=><label key={key}><span>{label}<small className="field-unit">میلیارد تومان</small></span><input type="number" min="0" step="0.1" value={financial[key]??""} onChange={event=>patchFinancial(key,event.target.value===""?null:Number(event.target.value))}/></label>)}</details>
             </article>
           </div>
           <footer>
@@ -709,6 +746,7 @@ export default function CapitalAllocation({
                       ))}
                     </select>
                   </label>
+                  <div className="case-wide capital-schedule-check"><span>کنترل برنامه چندساله</span><b>جمع نیاز ثبت‌شده سال‌ها: {fa(selectedScheduledNeed,0)} · مانده برنامه‌ریزی‌نشده: {fa(selectedRemainingNeed,0)} میلیارد تومان</b><small>نیاز سال هیچ دوره‌ای و مجموع نیاز سال‌های ۱۴۰۶ تا ۱۴۱۴ نمی‌تواند از نیاز مالی کل طرح بیشتر باشد.</small>{selectedResult&&!selectedResult.validation.valid&&<strong>{selectedResult.validation.errors.join(" ")}</strong>}</div>
                   <label>
                     <span>نوع نیاز</span>
                     <select
@@ -731,9 +769,7 @@ export default function CapitalAllocation({
                       min="0"
                       value={selectedCaseRecord.totalNeed}
                       onChange={(event) =>
-                        patchCase(selectedCaseRecord.id, {
-                          totalNeed: Number(event.target.value) || 0,
-                        })
+                        patchTotalNeed(selectedCaseRecord, Number(event.target.value) || 0)
                       }
                     />
                   </label>

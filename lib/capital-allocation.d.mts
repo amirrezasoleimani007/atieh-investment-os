@@ -7,6 +7,10 @@ export type CapitalProject = {
   year: number;
   entryPriority: number; entryRank?:number; financialReviewRequired?:boolean;
   annualNeed: number;
+  totalNeed?: number;
+  opportunityKey?: string;
+  sourceKind?: "scenario" | "independent";
+  runKey?: string;
   needType: string;
   stageable: boolean;
   minimumExecution: number;
@@ -35,10 +39,13 @@ export type FinancialCapacity = {
   cashAfterPayments: number; internal: number; reserveShortfall: number;
   shortDebt: number; shortDebtRate: number; longDebt: number; longDebtRate: number;
   debtCeiling: number; effectiveDebt: number; partner: number;
+  overlaps: {shortDebt:number;longDebt:number;partner:number;disposal:number};
 };
 export type CapitalOutput = {
   year: number;
   financial: FinancialCapacity;
+  financialValidation: {valid:boolean;complete:boolean;errors:string[]};
+  disposalGross:number;
   capacity: FinancialCapacity & { disposal: number };
   used: SourceAmounts;
   remaining: SourceAmounts;
@@ -61,9 +68,11 @@ export const ENTRY_METHODS: readonly string[];
 export const SOURCE_WATERFALL: Readonly<Record<string, FundingSource[]>>;
 export const DEFAULT_FINANCIAL_INPUT: Readonly<Record<string, number>>;
 export const V13_SAMPLE_FINANCIAL_INPUT: Readonly<Record<string, number>>;
+export const REQUIRED_FINANCIAL_FIELDS: readonly string[];
 export function computeFinancialCapacity(input?: Record<string, number>): FinancialCapacity;
+export function validateFinancialInput(input?: Record<string, number>): {valid:boolean;complete:boolean;errors:string[]};
 export function reliableDisposalCapacity(actions: { year: number; action: string; status: string; reliableProceeds: number }[], year: number): number;
-export function validateInvestmentCase(project: CapitalProject): { valid: boolean; errors: string[] };
+export function validateInvestmentCase(project: CapitalProject, allProjects?: CapitalProject[], tolerance?:number): { valid: boolean; errors: string[] };
 export function allocateCapital(input: {
   year: number;
   financialInput: Record<string, number>;
@@ -80,3 +89,4 @@ export function allocationSourceRows(output: CapitalOutput): {
 export type SourcePolicy = {liquidityMode?: "block"|"restricted"; liquidityReason?:string; liquiditySources?:FundingSource[];orders?: Record<string, FundingSource[]>; dedicatedFirst?: boolean; reason?: string; updatedAt?: string};
 export function normalizedSourceOrder(needType: string, order?: FundingSource[]): FundingSource[];
 export function validateSourcePolicy(policy?: SourcePolicy): boolean;
+export function sourcePolicyRequiresReason(policy?: SourcePolicy): boolean;

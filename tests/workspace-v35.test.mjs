@@ -18,6 +18,16 @@ test('unconfirmed liquidity exception cannot be recorded as an approved evaluati
  const o=allocateCapital({year:1406,financialInput:{...finance,requiredPayments:100},projects:[p],sourcePolicy:{liquidityMode:'restricted'}});
  assert.equal(o.valid,true);assert.equal(o.policyValid,false);assert.throws(()=>freezeAllocationEvaluation({},o,options));
 });
+
+test('approved evaluation requires rationale for a changed funding waterfall',()=>{
+ const finance={...DEFAULT_FINANCIAL_INPUT,cashStart:100};
+ const sourcePolicy={liquidityMode:'block',orders:{[p.needType]:['internal','partner','longDebt','disposal','shortDebt']}};
+ const o=allocateCapital({year:1406,financialInput:finance,projects:[p],sourcePolicy});
+ assert.throws(()=>freezeAllocationEvaluation({runKey:'a',year:1406,sourcePolicy},o,{status:'approved',actor:'مدیر',reason:'مصوبه',financeStatus:'confirmed'}));
+ const documented={...sourcePolicy,reason:'تصمیم کمیته سرمایه‌گذاری'};
+ const documentedOutput=allocateCapital({year:1406,financialInput:finance,projects:[p],sourcePolicy:documented});
+ assert.doesNotThrow(()=>freezeAllocationEvaluation({runKey:'a',year:1406,sourcePolicy:documented},documentedOutput,{status:'approved',actor:'مدیر',reason:'مصوبه',financeStatus:'confirmed'}));
+});
 test('valid explicit decision to defer may be approved without claiming financing',()=>{
  const o=allocateCapital({year:1406,financialInput:DEFAULT_FINANCIAL_INPUT,projects:[p],sourcePolicy:{liquidityMode:'block'}});
  assert.equal(o.totalExecuted,0);assert.equal(o.policyValid,true);assert.equal(freezeAllocationEvaluation({},o,options).status,'approved');
