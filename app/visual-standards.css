@@ -1,0 +1,113 @@
+/* IPS v42: component-sized surfaces, not uniform fixed-height boxes. */
+:root {
+ --ips-panel-padding:clamp(16px,1.8vw,24px); --ips-panel-radius:18px;
+ --ips-body-size:15px; --ips-label-size:13px;
+ --ips-metric-size:clamp(25px,2.3vw,32px);
+ --ips-chart-height:clamp(320px,32vw,440px);
+}
+.investment-os :is(.path-card,.growth-tool-grid>button,.composition-card,.case-editor,.movement-content) {min-height:0}
+.investment-os .path-card {grid-template-rows:auto 1fr auto;padding:var(--ips-panel-padding)}
+.investment-os .path-card h2 {min-height:0;font-size:clamp(23px,2vw,28px)}
+.investment-os .growth-tool-grid>button {padding:var(--ips-panel-padding);gap:8px}
+.investment-os .growth-tool-grid small {margin-top:12px}
+.investment-os .growth-tool-grid p {font-size:var(--ips-body-size)}
+.investment-os .movement-v29-intro .strategic-journey>article {min-height:0;padding:24px 20px;gap:16px}
+.investment-os .placeholder-stage {min-height:240px;padding:var(--ips-panel-padding)}
+.investment-os .search-empty {min-height:180px}
+.investment-os .portfolio-map {min-height:320px;padding:24px}
+.investment-os :is(.scatter-plot,.fit-plot) {height:var(--ips-chart-height)}
+.investment-os .compact-scatter .scatter-plot {height:300px}
+.investment-os .history-bars {height:360px;padding:32px 20px 24px}
+.investment-os :is(.composition-card,.capital-decision-desk,.executive-readiness,.executive-next-decisions,.executive-financing-summary,.executive-yearly-summary) {padding:var(--ips-panel-padding);border-radius:var(--ips-panel-radius)}
+.investment-os :is(.capital-kpis article,.desk-metrics article,.executive-v36-metrics article) {padding:16px;border-radius:12px;min-width:0}
+.investment-os :is(.capital-kpis span,.desk-metrics span,.executive-v36-metrics span) {font-size:14px;line-height:1.7}
+.investment-os :is(.capital-kpis b,.desk-metrics strong,.executive-v36-metrics b) {font-size:var(--ips-metric-size);line-height:1.4;font-variant-numeric:tabular-nums}
+.investment-os :is(.capital-kpis small,.desk-metrics small,.executive-v36-metrics small) {font-size:13px;color:#526b7b}
+.investment-os .desk-metrics {margin:16px 0;gap:12px}
+.investment-os .desk-metrics article {gap:4px}
+.investment-os .desk-metrics small {max-width:28ch}
+.investment-os .im-six-markets {align-items:stretch}
+.investment-os .im-six-markets .im-market-tile {min-height:0;display:flex;flex-direction:column}
+.investment-os .im-six-markets .im-tile-primary {min-height:0;flex:1;padding:20px 22px;gap:10px}
+.investment-os .im-six-markets .im-tile-primary h3 {font-size:22px;margin:4px 0}
+.investment-os .im-six-markets .im-tile-primary p {margin:0;font-size:15px;line-height:1.9}
+.investment-os .im-six-markets .im-tile-top {margin-bottom:4px}
+.investment-os .im-six-markets .im-tile-footer {padding-top:14px;margin-top:12px}
+.investment-os .im-six-markets .company-market-links {min-height:0;padding:14px 20px;gap:8px;align-content:start}
+.investment-os .im-six-markets .company-market-links button {font-size:14px;min-height:36px}
+.investment-os .im-six-markets .company-market-picker {padding:14px 20px}
+.investment-os :is(.case-directory button b,.case-form-grid label>span,.financial-form-grid label span) {font-size:14px;line-height:1.8}
+.investment-os :is(.case-directory button small,.case-editor header p,.case-editor header span,.allocation-override small,.allocation-override label span) {font-size:13px;line-height:1.8;color:#536d7c}
+.investment-os :is(.case-editor header button,.allocation-override summary,.case-form-grid input,.case-form-grid select,.case-form-grid textarea) {font-size:15px}
+.investment-os :is(.case-form-grid input,.case-form-grid select,.case-editor header button) {min-height:44px}
+.investment-os .investment-cases-layout {grid-template-columns:minmax(230px,.7fr) minmax(0,2fr);align-items:start}
+.investment-os .case-form-grid {grid-template-columns:repeat(2,minmax(0,1fr));padding:var(--ips-panel-padding);gap:16px 20px}
+.investment-os .case-wide {grid-column:1/-1}
+.investment-os .case-group-heading {grid-column:1/-1;font-size:17px;margin:8px 0 0;padding-bottom:8px;border-bottom:1px solid #dce6ed;color:#234d64}
+.investment-os .case-form-grid :is(label,input,select,textarea) {min-width:0}
+.investment-os .case-form-grid label>small {font-size:13px;line-height:1.8;color:#526e7e}
+.investment-os :is(.ownership-table-wrap,.dimension-table-wrap,.movement-table-wrap) :is(th,td) {font-size:15px;line-height:1.8}
+.investment-os :is(.history-column>small,.bar-value,.composition-legend small,.weight-summary p) {font-size:12px;line-height:1.7}
+.investment-os .capital-guided {padding:12px 16px;margin-bottom:12px}
+.investment-os .capital-guided-steps {display:flex;gap:6px;overflow-x:auto;margin:8px 0 0;padding-bottom:4px}
+.investment-os .capital-guided-steps button {flex:1;min-width:126px;min-height:48px;display:flex;align-items:center!important;justify-content:flex-start;padding:10px 12px;gap:8px!important;border-radius:10px}
+.investment-os .capital-guided-steps button b {font-size:14px!important;line-height:1.6!important;white-space:nowrap}
+.investment-os .capital-guided-steps button>span {width:26px;height:26px;font-size:13px}
+.investment-os .core-lens>header {padding:var(--ips-panel-padding)}
+.investment-os :is(.core-lens-note,.flow-heading p,.flow-chart-foot) {font-size:14px;line-height:1.8}
+.investment-os .flow-heading {padding:16px 20px;align-items:flex-start}
+.investment-os .flow-heading h3 {font-size:21px}
+.investment-os .flow-heading p {max-width:70ch}
+.investment-os .flow-select {padding:12px 20px;font-size:14px;background:#fafcfd;gap:12px}
+.investment-os .flow-select select {min-height:44px;font-size:15px;max-width:100%;min-width:0;flex:1}
+.flow-portfolio-map {border-top:1px solid #dce6ed;background:#fafcfd}
+.flow-portfolio-map>summary,.flow-technical>summary {display:flex;gap:10px;align-items:center;padding:14px 20px;cursor:pointer;color:#214f6c;font-size:15px;font-weight:700}
+.flow-portfolio-map>summary:after,.flow-technical>summary:after {content:'＋';margin-inline-start:auto}
+.flow-portfolio-map[open]>summary:after,.flow-technical[open]>summary:after {content:'−'}
+.flow-portfolio-map>summary>span,.flow-technical>summary>span {color:#607788;font-size:13px;font-weight:400}
+.flow-portfolio-map>summary>svg {width:20px;flex-shrink:0}
+.investment-os .flow-source-column article {padding:8px 10px}
+.investment-os .flow-source-column b {font-size:13px;line-height:1.4}
+.investment-os .flow-source-column strong {font-size:20px;line-height:1.35}
+.investment-os .flow-source-column strong small {font-size:11px}
+.investment-os .flow-source-column article div {font-size:11px;line-height:1.4}
+.investment-os .flow-project-column button {padding:8px 10px}
+.investment-os .flow-project-column button.active {padding:7px 9px}
+.investment-os .flow-project-column b {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:13px;line-height:1.4}
+.investment-os .flow-project-column strong {font-size:21px;line-height:1.3}
+.investment-os .flow-project-column button>span {font-size:12px;line-height:1.4}
+@media(max-width:1000px) {
+ .investment-os .investment-cases-layout {grid-template-columns:1fr}
+ .investment-os .case-directory {border-left:0;border-bottom:1px solid #dce6ed}
+}
+@media(max-width:760px) {
+ .flow-portfolio-map>summary {flex-wrap:wrap}
+ .flow-portfolio-map>summary>span {flex-basis:100%}
+ .investment-os .flow-select {flex-direction:column;align-items:stretch;padding:12px 16px}
+ .investment-os .flow-select select {width:100%}
+ .investment-os .history-bars {height:300px;padding-inline:8px}
+ .investment-os .im-six-markets .im-tile-primary {padding:18px}
+}
+@media(max-width:520px) {
+ .investment-os .case-form-grid {grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce) {
+ .investment-os *,.investment-os *:before,.investment-os *:after {animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+@media print {
+ .investment-os .desk-metrics article {padding:8px}
+ .investment-os .desk-metrics strong {font-size:19pt}
+ .investment-os .capital-decision-desk {padding:0}
+}
+.review-portfolio-table {border-top:1px solid #dce6ed;background:#fff}
+.review-portfolio-table>summary {display:flex;justify-content:space-between;gap:12px;cursor:pointer;padding:14px 20px;color:#26536b;font-size:15px;font-weight:600}
+.review-portfolio-table>summary>span {font-size:13px;font-weight:400;color:#617b8b}
+.review-portfolio-table table {width:100%;min-width:850px;border-collapse:collapse;text-align:right;font-size:14px}
+.review-portfolio-table :is(th,td) {padding:12px;border-bottom:1px solid #e1e9ef;vertical-align:top}
+.review-portfolio-table th {background:#eff4f8;white-space:nowrap}
+.review-portfolio-table .selected {background:#edf6fc}
+.review-portfolio-table td small {display:block;font-size:13px;color:#607888;max-width:300px}
+.investment-os .review-portfolio-table td button {background:none;border:0;color:#1c618c;text-align:right;font-size:14px;min-height:40px;padding:0;max-width:260px}
+.capital-step-actions {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.investment-os .capital-step-actions button {padding:7px 10px;font-size:13px;min-height:36px}
+.investment-os .capital-guided>header {gap:12px;flex-wrap:wrap}

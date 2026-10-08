@@ -14,6 +14,14 @@ function fixture(){
 test('full backup round trip preserves scenario, financial inputs and frozen decisions',()=>{
  const w=fixture();assert.deepEqual(validateScenarioBackup(JSON.parse(JSON.stringify(w))),w);
 });
+test('v40 core data snapshot and source eligibility survive export, import and merge',()=>{
+ const w=fixture();w.snapshots[0].coreLens={method:'2.2-trade-anchor-v1',rows:[{id:1,name:'حوزه',coreFit:1.2,verticalTrade:.01,verticalSteel:.02}]};
+ w.capital.sourcePolicies['s-a'].allowedSources={'توسعه / CAPEX رشد':['internal']};w.capital.sourcePolicies['s-a'].reason='مصوبه';
+ const backup=scenarioBackup(w,'a');assert.deepEqual(validateScenarioBackup(JSON.parse(JSON.stringify(backup))).snapshots[0].coreLens,w.snapshots[0].coreLens);
+ let n=0;const merged=mergeScenarioBackup(fixture(),backup,()=>`v40-${++n}`);validateScenarioBackup(merged);assert.deepEqual(merged.snapshots.at(-1).coreLens,w.snapshots[0].coreLens);
+ assert.deepEqual(merged.capital.sourcePolicies['v40-2'].allowedSources,{'توسعه / CAPEX رشد':['internal']});
+ const bad=structuredClone(w);bad.snapshots[0].coreLens.rows[0].coreFit=-1;assert.throws(()=>validateScenarioBackup(bad));
+});
 test('recoverable deletion removes handoff selection without deleting financial history',()=>{
  const w=fixture();const archived=archiveScenario(w,'a');assert.equal(archived.activeScenarioId,'b');assert.deepEqual(archived.selectedSnapshots,[]);assert.deepEqual(archived.capital,w.capital);assert.deepEqual(w.archivedScenarioIds,undefined);
  const restored=archiveScenario(archived,'a',false);assert.deepEqual(restored.archivedScenarioIds,[]);assert.equal(restored.capital.cases['s-a:1406:parent:1'].annualNeed,120);
@@ -47,4 +55,10 @@ test('renaming updates labels without recalculating plans or changing model scor
 
 test('importing a deleted scenario preserves its archive status and current active selection',()=>{
  const current=fixture();const archived=archiveScenario(current,'a');const backup=scenarioBackup(archived,'a');let n=0;const merged=mergeScenarioBackup(current,backup,()=>`archive${++n}`);validateScenarioBackup(merged);assert.equal(merged.activeScenarioId,'a');assert.deepEqual(merged.archivedScenarioIds,['archive1']);assert.deepEqual(merged.selectedSnapshots,current.selectedSnapshots);
+});
+test('v46 debt terms survive scenario backup and remap to imported run IDs',()=>{
+ const w=fixture();w.capital.debtTermsByRun={'s-a':{'1406:shortDebt':{years:3,grace:1}},'s-b':{'1406:longDebt':{years:5,grace:0}}};
+ const backup=scenarioBackup(w,'a');assert.deepEqual(Object.keys(backup.capital.debtTermsByRun),['s-a']);validateScenarioBackup(backup);
+ let n=0;const merged=mergeScenarioBackup(fixture(),backup,()=>`debt-${++n}`);assert.deepEqual(merged.capital.debtTermsByRun['debt-2'],w.capital.debtTermsByRun['s-a']);
+ const invalid=structuredClone(w);invalid.capital.debtTermsByRun['s-a']['1406:shortDebt'].grace=3;assert.throws(()=>validateScenarioBackup(invalid));
 });

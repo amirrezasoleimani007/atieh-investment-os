@@ -1,0 +1,4 @@
+import type {AllocationEvaluation} from './allocation-evaluations.mjs';
+export type RoadmapCell={year:number;status:string;label:string;rank?:number;need?:number|null;funded?:number;gap?:number|null;reason?:string;sources?:Record<string,number>;evaluationId?:string};
+export type RoadmapInput={baskets:Record<number,Record<string,{priorityRank?:number;entryMode?:import("./entry-route.mjs").EntryMode;selectionTrace?:import("./entry-route.mjs").SelectionTrace}>>;opportunities:{key:string;name:string;parentId?:number;parentName?:string;child?:boolean;entryPriority?:number}[];scenario:{id:string;revision:number;base:unknown};snapshots:{id:string;scenarioId:string;revision:number;createdAt:string;policy?:unknown}[];evaluations:AllocationEvaluation[];currentRunKey:string;currentInputs?:Record<number,unknown>};
+export function movementRoadmap(input:RoadmapInput):{key:string;name:string;cells:RoadmapCell[]}[];

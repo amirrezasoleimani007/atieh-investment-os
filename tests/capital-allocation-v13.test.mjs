@@ -58,7 +58,7 @@ test("منبع بدهی گران‌تر از سقف نرخ پروژه کنار �
 test("تخصیص موقت پروژه‌ای که به حداقل اجرا نمی‌رسد آزاد می‌شود", () => {
   const result = allocateCapital({
     year: 1406,
-    financialInput: { ...V13_SAMPLE_FINANCIAL_INPUT, cashStart: 200, reliableInflows: 200, minimumCashReserve: 300, shortDebtCapacity: 100, longDebtCapacity: 0, totalNewDebtCeiling: 100, partnerCapacity: 0 },
+    financialInput: { ...V13_SAMPLE_FINANCIAL_INPUT, cashStart: 300, reliableInflows: 0, requiredPayments:0, debtRepayment:0, dividends:0, priorCommitments:0, minimumCashReserve: 300, shortDebtCapacity: 100, longDebtCapacity: 0, totalNewDebtCeiling: 100, partnerCapacity: 0 },
     projects: [
       { id: "A", year: 1406, name: "پروژه نخست", needType: "سرمایه در گردش", annualNeed: 500, stageable: true, minimumExecution: 0.5, maximumRate: 0.35, entryPriority: 100 },
       { id: "B", year: 1406, name: "پروژه دوم", needType: "سرمایه در گردش", annualNeed: 100, stageable: false, maximumRate: 0.35, entryPriority: 90 },

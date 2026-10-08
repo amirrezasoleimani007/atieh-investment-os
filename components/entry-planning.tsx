@@ -1,4 +1,5 @@
 "use client";
+import {ENTRY_MODES,type EntryMode,type SelectionTrace} from "@/lib/entry-route.mjs";
 
 import {
   ChevronDown,
@@ -12,6 +13,7 @@ import { Fragment, useMemo, useState } from "react";
 import { HORIZONS, YEARS, selectionScore } from "@/lib/movement-model.mjs";
 
 export type EntryOpportunity = {
+  entryMode?:EntryMode; selectionTrace?:SelectionTrace;
   key: string;
   name: string;
   parentName: string;
@@ -25,7 +27,7 @@ export type EntryOpportunity = {
 };
 
 type Weights = { macro: number; detail: number; board: number };
-type PlanItem = { share:number; priorityRank?:number; parentId?:number };
+type PlanItem = { entryMode?:EntryMode; selectionTrace?:SelectionTrace; share:number; priorityRank?:number; parentId?:number };
 const fa = (value: number | null | undefined, digits = 1) =>
   value == null || !Number.isFinite(value)
     ? "—"
@@ -47,6 +49,7 @@ export default function EntryPlanning({
   onAdd,
   onRemove,
   onRank,
+  onMode,
 }: {
   baskets: Record<number,Record<string,PlanItem>>;
   opportunities: EntryOpportunity[];
@@ -55,10 +58,12 @@ export default function EntryPlanning({
   weights: Weights;
   onWeights: (weights: Weights) => void;
   plan: Record<string, PlanItem>;
-  onAdd: (item: EntryOpportunity) => void;
+  onAdd: (item: EntryOpportunity,mode:EntryMode) => void;
+  onMode:(key:string,mode:EntryMode)=>void;
   onRemove: (key: string) => void;
   onRank: (key: string, rank: number) => void;
 }) {
+  const [pending,setPending]=useState<EntryOpportunity|null>(null);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [showWeights, setShowWeights] = useState(false);
@@ -99,7 +104,7 @@ export default function EntryPlanning({
       ): row is {
         item: EntryOpportunity;
         key: string;
-        share: number; priorityRank?:number;
+        share: number; priorityRank?:number; entryMode?:EntryMode; selectionTrace?:SelectionTrace;
         parentId: number;
       } => Boolean(row.item),
     );
@@ -116,6 +121,7 @@ export default function EntryPlanning({
   const evidence=(item:EntryOpportunity)=>selectionScore(item.macro,item.detail,item.management,weights).components.map(c=>`${({macro:"کلان",detail:"تفصیلی",board:"مدیریت"} as Record<string,string>)[c.key]} ${fa(c.effectiveWeight)}٪`).join(" · ");
   return (
     <div className="entry-planning-workspace">
+      {pending&&<div className="entry-route-overlay"><section role="dialog" aria-modal="true" aria-labelledby="entry-route-title" className="entry-route-choice" onKeyDown={e=>{if(e.key==='Escape'){setPending(null);e.stopPropagation();}if(e.key==='Tab'){const buttons=Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button'));const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}><header><div><span>انتخاب مسیر ورود · سال {activeYear.toLocaleString('fa-IR',{useGrouping:false})}</span><h3 id="entry-route-title">{pending.name}</h3></div><button autoFocus onClick={()=>setPending(null)} aria-label="بستن انتخاب مسیر">×</button></header><p>این فرصت را از چه مسیری به برنامه اضافه می‌کنید؟</p><div>{Object.entries(ENTRY_MODES).map(([key,mode])=><button key={key} data-mode={key} onClick={()=>{onAdd(pending,key as EntryMode);setPending(null);}}><span>{key==='trade'?'تجارت و شبکه مشتری':'دارایی و عملیات'}</span><b>{mode.label}</b><p>{mode.description}</p><small>{mode.target}</small></button>)}</div></section></div>}
       <header className="entry-planning-head">
         <div>
           <span>گام چهارم · برنامه ورود</span>
@@ -294,7 +300,7 @@ export default function EntryPlanning({
                             selectedParentConflict(parent) ||
                             Math.abs(normalizedTotal - 100) >= 0.01
                           }
-                          onClick={() => onAdd(parent)}
+                          onClick={() => setPending(parent)}
                         >
                           {Object.hasOwn(plan, parent.key) ? (
                             "در برنامه"
@@ -338,7 +344,7 @@ export default function EntryPlanning({
                                 selectedParentConflict(child) ||
                                 Math.abs(normalizedTotal - 100) >= 0.01
                               }
-                              onClick={() => onAdd(child)}
+                              onClick={() => setPending(child)}
                             >
                               {Object.hasOwn(plan, child.key) ? (
                                 "در برنامه"
@@ -367,7 +373,7 @@ export default function EntryPlanning({
           </div>
           <div className="entry-total"><small>انتخاب‌های سال</small><b>{fa(selected.length,0)}</b><span>رتبه کمتر = تقدم بیشتر</span></div>
         </header>
-        <p className="entry-rank-guide">رتبه پیشنهادی به تخصیص سرمایه منتقل می‌شود. امتیاز علمی و نیاز مالی هر طرح مستقل باقی می‌مانند. سهم‌های نسخه‌های قبلی فقط در سوابق نگهداری می‌شوند.</p>
+        <div className="entry-mode-summary">{Object.entries(ENTRY_MODES).map(([key,mode])=><article data-mode={key} key={key}><span>{mode.target}</span><b>{fa(selected.filter(r=>r.entryMode===key).length,0)} فرصت</b><small>{mode.label}</small></article>)}{selected.some(r=>!r.entryMode)&&<article><span>انتخاب‌های نسخه قبلی</span><b>{fa(selected.filter(r=>!r.entryMode).length,0)}</b><small>مسیر ورود را تعیین کنید</small></article>}</div><p className="entry-rank-guide">رتبه پیشنهادی به تخصیص سرمایه منتقل می‌شود. امتیاز علمی و نیاز مالی هر طرح مستقل باقی می‌مانند. سهم‌های نسخه‌های قبلی فقط در سوابق نگهداری می‌شوند.</p>
         {selected.length ? (
           <div className="movement-table-wrap">
             <table className="movement-table selected-entry-table">
@@ -375,6 +381,7 @@ export default function EntryPlanning({
                 <tr>
                   <th>فرصت منتخب</th>
                   <th>حوزه مادر</th>
+                  <th>مسیر ورود و هسته هدف</th>
                   <th>افق</th>
                   <th>اولویت ورود</th>
                   <th>رتبه پیشنهادی ورود</th>
@@ -389,7 +396,7 @@ export default function EntryPlanning({
                       <td>
                         <b>{row.item.name}</b>
                       </td>
-                      <td>{row.item.parentName}</td>
+                      <td>{row.item.parentName}</td><td><label className="entry-mode-tag" data-mode={row.entryMode??'unknown'}><select aria-label={`مسیر ورود ${row.item.name}`} value={row.entryMode??''} onChange={e=>onMode(row.key,e.target.value as EntryMode)}><option value="" disabled>مسیر تعیین نشده</option>{Object.entries(ENTRY_MODES).map(([key,m])=><option key={key} value={key}>{m.label}</option>)}</select><small>{row.entryMode?ENTRY_MODES[row.entryMode].target:'انتخاب مسیر لازم است'}</small></label></td>
                       <td>
                         <span className={`horizon-tag ${row.item.horizon}`}>
                           {horizonLabel(row.item.horizon)}

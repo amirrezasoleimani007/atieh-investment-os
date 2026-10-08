@@ -1,4 +1,5 @@
 "use client";
+import {captureSelectionTrace,type EntryMode,type SelectionTrace} from "@/lib/entry-route.mjs";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -27,12 +28,16 @@ import IsicAnalysis, {
 import EntryPlanning, {
   type EntryOpportunity,
 } from "@/components/entry-planning";
-import { reconcileScenarioCases, workspaceId, inspectEntryPlan, reviewSignature, mergeScenarioPlans, eligibleScenarioCases, type SnapshotPlan } from "@/lib/scenario-workspace.mjs";
+import { carryFundingPolicies, reconcileScenarioCases, workspaceId, inspectEntryPlan, reviewSignature, mergeScenarioPlans, eligibleScenarioCases, type SnapshotPlan } from "@/lib/scenario-workspace.mjs";
 import ScenarioCapitalComparison from "@/components/scenario-capital-comparison";
 import MovementMeetingPrint from "@/components/movement-meeting-print";
 import { archiveScenario, renameScenario, scenarioBackup, validateScenarioBackup, mergeScenarioBackup } from "@/lib/scenario-management.mjs";
 import ScenarioControls from "@/components/scenario-controls";
 import CapitalAllocation from "@/components/capital-allocation";
+import MovementRoadmap from "@/components/movement-roadmap";
+import TradingProximityRanking from "@/components/trading-proximity-ranking";
+import type {TradeRoute} from "@/lib/trade-development.mjs";
+import { CORE_CONNECTION_METHOD, type CoreRow } from "@/lib/core-connection.mjs";
 import { calculateStrategicFit } from "@/lib/strategic-fit.mjs";
 import { priorityScore } from "@/lib/priority-score.mjs";
 import {
@@ -61,6 +66,8 @@ type Row = {
   dynamicY: number;
   priority: number;
   coreFit: number;
+  verticalTrade?: number;
+  verticalSteel?: number;
   adjacentFit: number;
   transformFit: number;
   yPlotBaseline: number;
@@ -87,18 +94,20 @@ type CurrentAsset = {
 };
 type Board = { score: number | null; reason: string };
 type BaseState = {
+  tradeRoutes?: TradeRoute[];
   mission: Record<number, string>;
   conditions: Record<number, { key: string; note: string }>;
   board: Record<number, Board>;
   activityBoard: Record<string, Board>;
   vision: Record<Horizon, number>;
   selectionWeights: { macro: number; detail: number; board: number };
-  baskets: Record<number, Record<string, { share: number; priorityRank?:number; parentId?: number }>>;
+  baskets: Record<number, Record<string, { share: number; priorityRank?:number; parentId?: number;entryMode?:EntryMode;selectionTrace?:SelectionTrace }>>;
   isicPreset: string;
   customWeights: Record<string, number>;
   [key: string]: unknown;
 };
 type CapitalState = {
+  debtTermsByRun?:Record<string,import("@/lib/debt-bridge.mjs").DebtTerms>;
   evaluations?: import("@/lib/allocation-evaluations.mjs").AllocationEvaluation[];
   sourcePolicies?: Record<string,import("@/lib/capital-allocation.mjs").SourcePolicy>;
   liquidityPoliciesByYear?: Record<string,Pick<import("@/lib/capital-allocation.mjs").SourcePolicy,"liquidityMode"|"liquidityReason"|"liquiditySources">>;
@@ -150,20 +159,14 @@ type CapitalCase = {
   overrideAt?: string;
 };
 type Scenario = { id: string; name: string; base: BaseState; completed: Stage[]; reviewed?: Partial<Record<Stage,string>>; revision: number; updatedAt: string };
-type Snapshot = { id: string; scenarioId: string; name: string; revision: number; createdAt: string; dataSnapshot: string; policy?: BaseState; plans: SnapshotPlan[] };
-type State = { exportedAt?:string;backupScope?:string; archivedScenarioIds?:string[]; compositionMode?:"single"|"combined"; recoveryRequired?:boolean; lastCapitalYear?:number; version: 31; base: BaseState; capital: CapitalState; activeScenarioId: string; scenarios: Scenario[]; snapshots: Snapshot[]; selectedSnapshots: string[]; conflictChoices: Record<string,string> };
+type Snapshot = { id: string; scenarioId: string; name: string; revision: number; createdAt: string; dataSnapshot: string; policy?: BaseState; plans: SnapshotPlan[]; coreLens?:{method:string;rows:CoreRow[]} };
+type State = { lastMovementStage?:Stage; exportedAt?:string;backupScope?:string; archivedScenarioIds?:string[]; compositionMode?:"single"|"combined"; recoveryRequired?:boolean; lastCapitalYear?:number; version: 31; base: BaseState; capital: CapitalState; activeScenarioId: string; scenarios: Scenario[]; snapshots: Snapshot[]; selectedSnapshots: string[]; conflictChoices: Record<string,string> };
 function prepareCapital(state:State):State {
   const archived=new Set(state.archivedScenarioIds??[]);
   const removed=new Set(state.snapshots.filter(s=>archived.has(s.scenarioId)).map(s=>s.id));
   state={...state,selectedSnapshots:state.selectedSnapshots.filter(id=>!removed.has(id)),conflictChoices:Object.fromEntries(Object.entries(state.conflictChoices).filter(([,v])=>!removed.has(v)))};
-  const policies={...state.capital.sourcePolicies};
-  const runKey=state.selectedSnapshots.slice().sort().join("|");
-  const lineage=(key:string)=>key.split("|").map(id=>state.snapshots.find(s=>s.id===id)?.scenarioId??id).sort().join("|");
-  if(runKey && !policies[runKey]) {
-    const previous=Object.entries(policies).filter(([key])=>lineage(key)===lineage(runKey)).at(-1)?.[1];
-    if(previous)policies[runKey]=structuredClone(previous);
-  }
-  return {...state,capital:{...state.capital,sourcePolicies:policies,cases:reconcileScenarioCases(state.capital.cases,state.snapshots,state.selectedSnapshots,state.conflictChoices)}};
+  const policies=carryFundingPolicies(state.capital,state.snapshots,state.selectedSnapshots);
+  return {...state,capital:{...state.capital,...policies,cases:reconcileScenarioCases(state.capital.cases,state.snapshots,state.selectedSnapshots,state.conflictChoices)}};
 }
 function serialized(state: State) { return {...state, scenarios: state.scenarios.map(s => s.id === state.activeScenarioId ? {...s, base: state.base, completed: STAGES.filter(step=>s.reviewed?.[step.id]===reviewSignature(state.base,step.id)).map(step=>step.id)} : s)}; }
 const emptyWorkspace = {activeScenarioId:"", scenarios:[] as Scenario[], snapshots:[] as Snapshot[], selectedSnapshots:[] as string[], conflictChoices:{} as Record<string,string>};
@@ -420,8 +423,10 @@ export default function MovementPathV29({
   currentPortfolio,
   dataSnapshot,
   onOpenCapital,
+  onOpenMovement,
 }: {
   onOpenCapital?:()=>void;
+  onOpenMovement?:()=>void;
   mode?: "movement" | "capital";
   rows: Row[];
   masterData: ActivityRow[];
@@ -430,6 +435,7 @@ export default function MovementPathV29({
   dataSnapshot: string;
 }) {
   const [entered, setEntered] = useState(false);
+  const [showRoadmap,setShowRoadmap] = useState(false);
   const [stage, rawSetStage] = useState<Stage>("mission");
   const [state, setState] = useState<State>({
     version: 31,
@@ -479,7 +485,8 @@ export default function MovementPathV29({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const loaded=prepareCapital(hydrate(rows, masterData, currentPortfolio));
-      setState(loaded);
+      setState({...loaded,lastMovementStage:undefined});
+      if(loaded.lastMovementStage){setEntered(true);rawSetStage(loaded.lastMovementStage);}
       setCompositionMode(loaded.compositionMode??(loaded.selectedSnapshots.length>1?"combined":"single"));
       setActiveYear(loaded.lastCapitalYear ?? 1406);
       setCanUndoRestore(Boolean(localStorage.getItem("ips-workspace-before-restore-v37")));
@@ -612,7 +619,7 @@ export default function MovementPathV29({
     .map(([key, value]) => {
       const opportunity = entryOpportunities.find((item) => item.key === key);
       return opportunity
-        ? { ...opportunity, share: Number(value.share || 0), priorityRank: value.priorityRank }
+        ? { ...opportunity, share: Number(value.share || 0), priorityRank: value.priorityRank,entryMode:value.entryMode,selectionTrace:value.selectionTrace }
         : null;
     })
     .filter(Boolean) as (EntryOpportunity & { share: number })[];
@@ -623,12 +630,28 @@ export default function MovementPathV29({
   const stageInputsReady = stage==="mission" ? !records.some(row=>row.mission==="مشروط"&&!passesMissionGate(row.mission,row.condition)) : stage==="entry" ? inspectEntryPlan(base.baskets,entryOpportunities,"priority").errors.length===0 : true;
   const activeScenario = serialized(state).scenarios.find(s => s.id === state.activeScenarioId);
   const selectedSnapshots = state.snapshots.filter(s => state.selectedSnapshots.includes(s.id));
+  const scenarioDrafts = serialized(state).scenarios;
+  const changedSnapshots = selectedSnapshots.filter(snapshot=>{
+    const draft=scenarioDrafts.find(s=>s.id===snapshot.scenarioId);
+    return draft && (draft.revision!==snapshot.revision || reviewSignature(draft.base,"entry")!==reviewSignature(snapshot.policy??{},"entry"));
+  });
+  const reviewDraft = (scenarioId:string) => {
+    const draft=scenarioDrafts.find(s=>s.id===scenarioId);
+    if(!draft)return;
+    const next={...serialized(state),activeScenarioId:scenarioId,base:draft.base,lastMovementStage:"entry" as Stage};
+    try{localStorage.setItem("ips-scenario-workspace-v31",JSON.stringify(next));}catch{setNotice("بازبینی ذخیره نشد؛ ابتدا پشتیبان تهیه کنید.");return;}
+    setState(next);setEntered(true);setStage("entry");onOpenMovement?.();
+  };
   const merged = mergeScenarioPlans(selectedSnapshots, activeYear, state.conflictChoices,state.capital.cases);
   const runKey = state.selectedSnapshots.slice().sort().join("|") || (state.activeScenarioId === "legacy" ? "legacy" : "none");
   const capitalPlans = selectedSnapshots.length ? merged.plans : state.activeScenarioId === "legacy" ? liveCapitalPlans : [];
   const yearMerges=YEARS.map(year=>({year,...mergeScenarioPlans(selectedSnapshots,year,state.conflictChoices,state.capital.cases)}));
   const eligiblePlans = yearMerges.flatMap(result=>result.plans);
   const runCases = eligibleScenarioCases(state.capital.cases,runKey,eligiblePlans);
+  const roadmapInputs=Object.fromEntries(YEARS.map(year=>{
+    const policy={...state.capital.sourcePolicies?.[runKey]};delete policy.liquidityMode;delete policy.liquiditySources;delete policy.liquidityReason;
+    return [year,{runKey,year,contextName:selectedSnapshots.map(s=>s.name).join(" + ")||"پروژه‌های مستقل",financial:state.capital.financialByYear[year]??{},financeStatus:state.capital.financialStatusByYear?.[year]??"draft",actions:currentPortfolio.map((_,i)=>state.capital.portfolioActions[String(i)]).filter(Boolean),projects:Object.values(runCases).filter(c=>c.year===year),sourcePolicy:{liquidityMode:"block",...policy,...state.capital.liquidityPoliciesByYear?.[`${runKey}:${year}`]}}];
+  }));
   const selectSnapshots=(inputIds:string[])=>{
     const uniqueVersions=[...new Map(inputIds.map(id=>[state.snapshots.find(s=>s.id===id)?.scenarioId??id,id])).values()];
     const ids=compositionMode==="single"?uniqueVersions.slice(-1):uniqueVersions;
@@ -654,7 +677,7 @@ export default function MovementPathV29({
     if (!activeScenario || (confirmFinal ? STAGES.slice(0,3).some(step=>!activeScenario.completed.includes(step.id)) : activeScenario.completed.length < 4)) {setNotice("ابتدا مراحل قبلی سناریو را بررسی و تأیید کنید.");return;}
     if (checked.errors.length) {setNotice(checked.errors.join(" "));return;}
     const previous=state.snapshots.filter(s=>s.scenarioId===activeScenario.id&&s.revision===activeScenario.revision&&s.dataSnapshot===dataSnapshot&&JSON.stringify(s.plans)===JSON.stringify(checked.plans)&&JSON.stringify(s.policy)===JSON.stringify(base)).at(-1);
-    const snapshot:Snapshot=previous??{id:workspaceId(),scenarioId:activeScenario.id,name:activeScenario.name,revision:activeScenario.revision,createdAt:new Date().toISOString(),dataSnapshot,policy:structuredClone(base),plans:checked.plans};
+    const snapshot:Snapshot=previous??{id:workspaceId(),scenarioId:activeScenario.id,name:activeScenario.name,revision:activeScenario.revision,createdAt:new Date().toISOString(),dataSnapshot,policy:structuredClone(base),plans:checked.plans,coreLens:{method:CORE_CONNECTION_METHOD.version,rows:rows.filter(row=>checked.plans.some(p=>p.parentId===row.id)).map(row=>({id:row.id,name:row.name,coreFit:row.coreFit,verticalTrade:row.verticalTrade,verticalSteel:row.verticalSteel}))}};
     const year=checked.plans.some(p=>p.year===activeYear)?activeYear:Math.min(...checked.plans.map(p=>p.year));
     const next=prepareCapital({...serialized(state),lastCapitalYear:year,scenarios:serialized(state).scenarios.map(s=>s.id===activeScenario.id?{...s,reviewed:{...s.reviewed,entry:reviewSignature(base,"entry")}}:s),snapshots:previous?state.snapshots:[...state.snapshots,snapshot],selectedSnapshots:[snapshot.id],conflictChoices:{}});
     try { localStorage.setItem("ips-scenario-workspace-v31",JSON.stringify(serialized(next))); } catch {setNotice("انتقال ذخیره نشد؛ فضای مرورگر کافی نیست. ابتدا فایل پشتیبان را دانلود کنید.");return;}
@@ -805,6 +828,8 @@ export default function MovementPathV29({
         </section>
         {state.snapshots.length>0&&<ScenarioCapitalComparison sourcePolicies={state.capital.sourcePolicies} liquidityPoliciesByYear={state.capital.liquidityPoliciesByYear} snapshots={state.snapshots.filter(s=>!(state.archivedScenarioIds??[]).includes(s.scenarioId))} year={activeYear} cases={state.capital.cases} financial={state.capital.financialByYear[activeYear]??{}} actions={Object.values(state.capital.portfolioActions)}/>}
         <section className="capital-route-surface">
+          {changedSnapshots.length>0&&<section className="capital-sync-notice" role="status"><div><b>تغییرات مسیر حرکت هنوز به تخصیص منتقل نشده است</b><p>محاسبات جاری از نسخه ثبت‌شده استفاده می‌کنند. بازبینی و انتقال نسخه جدید، نیازهای مالی قبلی را حفظ می‌کند؛ تصمیم‌های ثبت‌شده تغییر نمی‌کنند.</p></div>{changedSnapshots.map(s=><button key={s.id} onClick={()=>reviewDraft(s.scenarioId)}>بازبینی «{s.name}» · نسخه جاری {fa(scenarioDrafts.find(d=>d.id===s.scenarioId)?.revision,0)}</button>)}</section>}
+
           <CapitalAllocation
             activeYear={activeYear}
             onYear={year=>{setActiveYear(year);setState(old=>({...old,lastCapitalYear:year}));}}
@@ -861,6 +886,7 @@ export default function MovementPathV29({
       /> </>
     );
 
+  if(showRoadmap&&activeScenario)return <div className="movement-v29" dir="rtl"><header className="movement-v29-heading"><div><span>گام ۰۵ · {activeScenario.name}</span><h1>نقشه مسیر انتخاب‌های چندساله</h1></div><button onClick={()=>setShowRoadmap(false)}>بازگشت به مسیر حرکت</button></header><MovementRoadmap initialYear={activeYear} input={{baskets:base.baskets,opportunities:entryOpportunities,scenario:activeScenario,snapshots:state.snapshots,evaluations:state.capital.evaluations??[],currentRunKey:runKey,currentInputs:roadmapInputs}} onYear={year=>{setActiveYear(year);setStage("entry");setShowRoadmap(false);}}/></div>;
   return (
     <main className="movement-v29" dir="rtl">
       {downloadReady}
@@ -898,6 +924,7 @@ export default function MovementPathV29({
             </button>
           );
         })}
+        <button onClick={()=>setShowRoadmap(true)}><span>۰۵</span><Route/><div><b>نقشه چندساله</b><small>دلایل انتخاب و مسیر ورود</small></div></button>
       </nav>
       {notice && (
         <div className="movement-notice">
@@ -1377,7 +1404,7 @@ export default function MovementPathV29({
               </section>
             )}
             {stage === "entry" && (
-              <EntryPlanning
+              <><EntryPlanning
                 baskets={base.baskets}
                 opportunities={entryOpportunities}
                 activeYear={activeYear}
@@ -1387,13 +1414,13 @@ export default function MovementPathV29({
                   updateBase({ selectionWeights })
                 }
                 plan={plan}
-                onAdd={(item) =>
+                onAdd={(item,entryMode) =>
                   updateBase({
                     baskets: {
                       ...base.baskets,
                       [activeYear]: {
                         ...plan,
-                        [item.key]: { share: 0, priorityRank:Math.max(0,...Object.values(plan).map(v=>v.priorityRank??0))+1, parentId: item.parentId },
+                        [item.key]: { entryMode,selectionTrace:captureSelectionTrace(item,{...base,customWeights:isicWeights},records.find(r=>r.id===item.parentId),activeYear,dataSnapshot),share: 0, priorityRank:Math.max(0,...Object.values(plan).map(v=>v.priorityRank??0))+1, parentId: item.parentId },
                       },
                     },
                   })
@@ -1419,6 +1446,7 @@ export default function MovementPathV29({
                     };
                   })
                 }
+                onMode={(key,entryMode)=>updateBase({baskets:{...base.baskets,[activeYear]:{...plan,[key]:{...plan[key],entryMode}}}})}
                 onRank={(key, priorityRank) =>
                   updateBase({
                     baskets: {
@@ -1427,7 +1455,7 @@ export default function MovementPathV29({
                     },
                   })
                 }
-              />
+              /><button className="roadmap-open" onClick={()=>setShowRoadmap(true)}>مشاهده نقشه یکپارچه چندساله · گام ۰۵</button><TradingProximityRanking rows={rows} selected={liveCapitalPlans} year={activeYear} mission={base.mission}/></>
             )}
           </div>
         )}

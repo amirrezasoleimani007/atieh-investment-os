@@ -23,7 +23,7 @@ test('unconsumed reservation stays protected even when minimum execution fails',
 test('liquidity safeguard blocks new investment and exception needs a documented decision',()=>{
  const financialInput={...DEFAULT_FINANCIAL_INPUT,requiredPayments:100,minimumCashReserve:20,partnerCapacity:100};
  const input={year:1406,financialInput,projects:[p]};
- assert.equal(allocateCapital(input).totalExecuted,100); // approved baseline unchanged
+ assert.equal(allocateCapital(input).totalExecuted,0); // v40 defaults to the same liquidity guard as the UI
  const blocked=allocateCapital({...input,sourcePolicy:{liquidityMode:'block'}});assert.equal(blocked.totalExecuted,0);assert.equal(blocked.financial.reserveShortfall,120);assert.equal(blocked.investmentReady,false);
  assert.equal(allocateCapital({...input,sourcePolicy:{liquidityMode:'restricted'}}).totalExecuted,0);
  const restricted=allocateCapital({...input,sourcePolicy:{liquidityMode:'restricted',liquidityReason:'منبع محدود به طرح؛ مصوبه',liquiditySources:['partner']}});assert.equal(restricted.totalExecuted,100);assert.equal(restricted.investmentReady,false);assert.equal(restricted.financial.reserveShortfall,120);

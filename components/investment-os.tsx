@@ -1,4 +1,5 @@
 "use client";
+import {financialAtYear,financialYears} from "@/lib/financial-year.mjs";
 import {formatFinancialValue} from "@/lib/financial-display.mjs";
 
 import { useEffect, useMemo, useState } from "react";
@@ -1062,16 +1063,19 @@ function ScatterChart({
         </div>
       </header>
       <div className="scatter-wrap compact-scatter">
-        <div className="axis-label y-label">{definition.yLabel}</div>
+        <div className="axis-label y-label">{definition.yLabel} · کم ← زیاد</div>
         <div className="scatter-plot">
           <div className="scatter-grid" />
+          <div className="scatter-y-scale" aria-label="محور عمودی: صفر کم تا ده زیاد"><span>۱۰ · زیاد</span><span>۵</span><span>۰ · کم</span></div>
+          <div className="scatter-x-scale" aria-label="محور افقی: صفر کم تا ده زیاد"><span>۰ · کم</span><span>۵</span><span>۱۰ · زیاد</span></div>
           {rows.map((c, index) => {
             const x = c.scatterAxes?.[definition.x],
               y = c.scatterAxes?.[definition.y];
             if (x == null || y == null) return null;
             return (
               <button
-                aria-label={c.name}
+                aria-label={`${c.name}؛ ${definition.xLabel}: ${fa(x)}؛ ${definition.yLabel}: ${fa(y)}`}
+                title={`${c.name} · ${definition.xLabel}: ${fa(x)} · ${definition.yLabel}: ${fa(y)}`}
                 key={c.name}
                 className={`scatter-point ${selected === c.name ? "selected" : ""}`}
                 style={
@@ -1088,7 +1092,7 @@ function ScatterChart({
             );
           })}
         </div>
-        <div className="axis-label x-label">{definition.xLabel}</div>
+        <div className="axis-label x-label">{definition.xLabel} · از صفر تا ده</div>
       </div>
     </article>
   );
@@ -1256,10 +1260,11 @@ function FinancialView({
 }) {
   const [scope, setScope] = useState("گروه آتیه"),
     [view, setView] = useState<FinanceView>("scatter");
-  const scoped = useMemo(
-    () => financialCompanies.filter((c) => c.scope === scope),
-    [financialCompanies, scope],
-  );
+  const [selectedYear,setSelectedYear]=useState(1404);
+  const scopeCompanies=useMemo(()=>financialCompanies.filter(c=>c.scope===scope),[financialCompanies,scope]);
+  const years=useMemo(()=>financialYears(scopeCompanies),[scopeCompanies]);
+  const activeYear=years.includes(selectedYear)?selectedYear:years[0];
+  const scoped=useMemo(()=>scopeCompanies.map(c=>financialAtYear(c,activeYear)),[scopeCompanies,activeYear]);
   const [selectedName, setSelectedName] = useState(
     financialCompanies.find((c) => c.scope === "گروه آتیه")?.name ?? "",
   );
@@ -1308,6 +1313,7 @@ function FinancialView({
             </button>
           ))}
         </div>
+        {view!=="kpi"&&<label className="finance-year-filter">سال داده<select aria-label="سال داده مالی" value={activeYear??""} onChange={e=>setSelectedYear(Number(e.target.value))}>{years.map(y=><option key={y} value={y}>{y.toLocaleString("fa-IR",{useGrouping:false})}</option>)}</select></label>}
         <div className="view-tabs">
           {(
             [
@@ -1337,7 +1343,7 @@ function FinancialView({
               <div>
                 <h2>دیده‌بان مالی؛ چهار منظر عملکرد</h2>
                 <p>
-                  همان منطق مصوب نرم‌افزار مالی برای {scope}؛ انتخاب هر نقطه،
+                  داده سال {activeYear?.toLocaleString("fa-IR",{useGrouping:false})} برای {scope}؛ انتخاب هر نقطه،
                   سیاست شرکت را به‌روزرسانی می‌کند
                 </p>
               </div>
@@ -3779,6 +3785,7 @@ export default function InvestmentOS({
       {path === "capital" && (
         <MovementPath
           mode="capital"
+          onOpenMovement={()=>setPath("movement")}
           rows={movementRows}
           masterData={movementMaster}
           currentPortfolio={portfolio}

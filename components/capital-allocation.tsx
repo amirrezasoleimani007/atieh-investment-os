@@ -1,4 +1,7 @@
 "use client";
+import DebtBridge from "@/components/debt-bridge";
+import FundingImprovement from "@/components/funding-improvement";
+import CapitalPreparationSummary from "@/components/capital-preparation-summary";
 
 import {
   Activity,
@@ -18,6 +21,8 @@ import {
 import {summarizeCapital} from "@/lib/capital-presentation.mjs";
 import CapitalExecutiveSummary from "@/components/capital-executive-summary";
 import CapitalDecisionDesk from "@/components/capital-decision-desk";
+import CapitalFlow from "@/components/capital-flow";
+import AllocationLiveChange from "@/components/allocation-live-change";
 import SourceOrderPolicy from "@/components/source-order-policy";
 import { useMemo, useState } from "react";
 import {
@@ -83,6 +88,7 @@ type PortfolioItem = {
 };
 type PlanOpportunity = EntryOpportunity & { share: number };
 type AllocationState = {
+  debtTermsByRun?:Record<string,import("@/lib/debt-bridge.mjs").DebtTerms>;
   evaluations?: import("@/lib/allocation-evaluations.mjs").AllocationEvaluation[];
   sourcePolicies?:Record<string,import("@/lib/capital-allocation.mjs").SourcePolicy>;
   liquidityPoliciesByYear?:Record<string,Pick<import("@/lib/capital-allocation.mjs").SourcePolicy,"liquidityMode"|"liquidityReason"|"liquiditySources">>;
@@ -154,7 +160,7 @@ export default function CapitalAllocation({
   const [view, setView] = useState<
     "dashboard" | "capacity" | "portfolio" | "cases" | "trace" | "executive" | "policy"
   >("dashboard");
-  const [advanced,setAdvanced]=useState(false);
+  const preparing=["capacity","portfolio","cases","policy"].includes(view);
   const [manualName,setManualName]=useState("");
   const [manualReason,setManualReason]=useState("");
   const [manualRank,setManualRank]=useState(1);
@@ -380,7 +386,7 @@ export default function CapitalAllocation({
           <h2>تخصیص راهبردی سرمایه و منابع</h2>
           <p>
             فرصت‌های منتخب را به ظرفیت واقعی سال، تصمیم‌های پرتفوی موجود و آبشار
-            منابع مصوب متصل کنید.
+            منابع مصوب متصل کنید. برای هر سال، ورود نقد و بازپرداخت را جدا ثبت کنید؛ تأمین یک سال به معنای کفایت سال بعد نیست.
           </p>
         </div>
         <label>
@@ -401,45 +407,25 @@ export default function CapitalAllocation({
         </label>
       </header>
 
-      <div className="desk-home-actions"><button className={view==="dashboard"?"active":""} onClick={()=>setView("dashboard")}>میز تصمیم و وضعیت طرح‌ها</button><button onClick={()=>setView("executive")}>ثبت و مرور تصمیم مدیریتی</button></div>
-      <section className="capital-guided">
-        <header><div><span>مراحل تخصیص سال جاری</span></div><button onClick={()=>setAdvanced(!advanced)}>{advanced?"نمای ساده":"ابزارهای کامل"}<SlidersHorizontal/></button></header>
-        <div className="capital-guided-steps">{([['capacity','منابع قابل اتکای سال'],['cases','طرح‌ها و سرمایه موردنیاز'],['policy','اولویت طرح‌ها و سیاست تأمین'],['executive','جمع‌بندی تخصیص سرمایه']] as const).map(([key,label],i)=><button key={key} className={view===key?'active':''} onClick={()=>setView(key)}><span>{(i+1).toLocaleString("fa-IR")}</span><b>{label}</b></button>)}</div>
-        <p>امتیاز ورود حفظ می‌شود؛ اولویت طرح‌ها، ترتیب منابع و شروط اجرای هر طرح را مدیریت تعیین می‌کند. بازده اقتصادی از تخصیص منابع استنتاج نمی‌شود.</p>
-      </section>
-      <div className={`finance-status ${financeStatus}`}><ShieldCheck/><span>{financeStatus==="confirmed"?"ورودی مالی واقعی تأیید شده":financeStatus==="sample"?"داده نمونه آموزشی؛ قابل استناد برای تصمیم نهایی نیست":"ورودی مالی در انتظار بررسی و تأیید"}</span>{financeStatus!=="confirmed"&&<button onClick={()=>setView("capacity")}>بررسی منابع قابل اتکای سال</button>}</div>
-      {!output.financialValidation.valid&&<div className="capital-blocked" role="alert">ورودی مالی کامل نیست: {output.financialValidation.errors[0]} مقدار واردنشده با صفر واقعی یکسان نیست و ثبت تصمیم تأییدشده ممکن نخواهد بود.</div>}
-      {blocked&&<div className="capital-blocked" role="alert">تخصیص تا حل تعارض سناریوها متوقف است؛ پرونده‌ها و منابع قابل ویرایش‌اند.</div>}
+      <nav className="capital-spaces" aria-label="فضاهای تخصیص"><button className={preparing?"active":""} aria-pressed={preparing} onClick={()=>setView("capacity")}><span>۱</span><div><b>آماده‌سازی سال</b><small>منابع، نیازها و قواعد</small></div></button><button className={!preparing?"active":""} aria-pressed={!preparing} onClick={()=>setView("dashboard")}><span>۲</span><div><b>بررسی تأمین طرح‌ها</b><small>نتیجه و مسیر رسیدن به آن</small></div></button></nav>
+      <nav className="capital-space-tabs" aria-label={preparing?"تنظیمات سال":"بررسی طرح‌ها"}>{(preparing?[["capacity","۱ · چقدر پول داریم؟"],["cases","۲ · چه طرح‌هایی داریم؟"],["policy","۳ · چه قواعدی داریم؟"],["portfolio","آزادسازی سرمایه"]]:[["dashboard","میز تصمیم"],["trace","مسیر یک طرح"],["executive","مرور و ثبت تصمیم"]]).map(([key,label])=><button key={key} aria-current={view===key?"page":undefined} className={view===key?"active":""} onClick={()=>setView(key as typeof view)}>{label}</button>)}</nav>
+      {preparing&&<CapitalPreparationSummary output={output} contextName={contextName??"سبد جاری"} year={activeYear} financeStatus={financeStatus} blocked={blocked} onSources={()=>setView("capacity")} onCases={()=>setView("cases")} onPolicy={()=>setView("policy")}/>}
+      <AllocationLiveChange output={output} contextKey={`${runKey}:${activeYear}`}/>
+      {!preparing&&financeStatus!=="confirmed"&&<div className={`finance-status ${financeStatus}`}><ShieldCheck/><span>{financeStatus==="sample"?"داده نمونه آموزشی؛ قابل استناد برای تصمیم نهایی نیست":"ورودی مالی در انتظار بررسی و تأیید"}</span><button onClick={()=>setView("capacity")}>بررسی منابع قابل اتکای سال</button></div>}
+      {!preparing&&!output.financialValidation.valid&&<div className="capital-blocked" role="alert">ورودی مالی کامل نیست: {output.financialValidation.errors[0]} مقدار واردنشده با صفر واقعی یکسان نیست و ثبت تصمیم تأییدشده ممکن نخواهد بود.</div>}
+      {!preparing&&blocked&&<div className="capital-blocked" role="alert">تخصیص تا حل تعارض سناریوها متوقف است؛ پرونده‌ها و منابع قابل ویرایش‌اند.</div>}
       {Object.values(output.reserved).some(v=>v>0)&&<div className="finance-status"><ShieldCheck/><span>{fa(Object.values(output.reserved).reduce((n,v)=>n+v,0),0)} میلیارد تومان تعهد رزروشده هنوز مصرف نشده است؛ در ظرفیت آزاد برای طرح‌های دیگر منظور نمی‌شود.</span></div>}
       {actionNotice&&<div className="movement-notice"><span>{actionNotice}</span><button onClick={()=>setActionNotice("")}>×</button></div>}
-      {advanced && <nav className="capital-tabs" aria-label="بخش‌های تخصیص سرمایه">
-        {(
-          [
-            ["dashboard", "نمای تصمیم", Activity],
-            ["capacity", "ظرفیت مالی", Landmark],
-            ["portfolio", "آزادسازی سرمایه", BriefcaseBusiness],
-            ["cases", "پرونده‌های سرمایه‌گذاری", WalletCards],
-            ["trace", "ردیابی تخصیص", Route],
-            ["executive", "خروجی مدیریتی", FileText],
-          ] as const
-        ).map(([key, label, Icon]) => (
-          <button
-            key={key}
-            className={view === key ? "active" : ""}
-            onClick={() => setView(key)}
-          >
-            <Icon />
-            {label}
-          </button>
-        ))}
-      </nav>}
 
-      {view === "capacity" && <section className="finance-verification"><h3>نوع ورودی مالی</h3><p>ارقام نمونه فقط برای آموزش هستند. تعهدات قبلی که از منابع کسر شده‌اند را دوباره به‌عنوان نیاز پرونده همین سال ثبت نکنید.</p><div><button onClick={()=>setPendingFinance("sample")}>بارگذاری داده نمونه</button><button onClick={()=>setPendingFinance("draft")}>شروع با ورودی واقعی خالی</button><button onClick={()=>setFinanceMode("confirmed")}>تأیید ارقام به‌عنوان ورودی واقعی</button></div></section>}
+
+      {view === "capacity" && <section className="finance-verification"><h3>گام اول · منابع قابل اتکای سال</h3><button onClick={()=>setView("portfolio")}>ثبت آزادسازی سرمایه از دارایی‌های موجود</button><p>ارقام نمونه فقط برای آموزش هستند. تعهدات قبلی که از منابع کسر شده‌اند را دوباره به‌عنوان نیاز پرونده همین سال ثبت نکنید. سقف کل بدهی جدید، سقف سالانه است؛ بدهی وصول‌شده در ورود نقد از آن کسر می‌شود.</p><div><button onClick={()=>setPendingFinance("sample")}>بارگذاری داده نمونه</button><button onClick={()=>setPendingFinance("draft")}>شروع با ورودی واقعی خالی</button><button onClick={()=>setFinanceMode("confirmed")}>تأیید ارقام به‌عنوان ورودی واقعی</button></div></section>}
       {pendingFinance&&<div className="capital-blocked" role="alert"><p>{pendingFinance==="sample"?"ارقام سال جاری با داده آموزشی جایگزین می‌شوند.":"ارقام مالی سال جاری پاک می‌شوند."} نسخه‌های ثبت‌شده ارزیابی حفظ می‌شوند.</p><button onClick={()=>{setFinanceMode(pendingFinance);setPendingFinance(null);}}>تأیید جایگزینی ارقام</button><button onClick={()=>setPendingFinance(null)}>انصراف</button></div>}
       {view === "policy" && <section className="capital-policy"><header><h3>اولویت طرح‌ها و سیاست تأمین</h3><p>رتبه کمتر اولویت تخصیص بالاتر دارد. رتبه مصوب نسبت به اولویت ورود مقدم است؛ دلیل تصمیم ثبت می‌شود. تغییر این رتبه هیچ امتیاز علمی را تغییر نمی‌دهد.</p></header><div className="table-scroll"><table><thead><tr><th>پرونده</th><th>اولویت مدل ورود</th><th>رتبه مصوب</th><th>دلیل ترجیح</th><th>حداقل اجرای مرحله‌ای</th><th>سقف نرخ</th></tr></thead><tbody>{cases.map(c=><tr key={c.id}><td>{c.name}</td><td>{c.sourceKind==="independent"?"فاقد امتیاز مدل":fa(c.entryPriority)}</td><td><input aria-label={`رتبه تخصیص ${c.name}`} type="number" min="1" step="1" value={c.overrideRank??""} onChange={e=>patchCase(c.id,{overrideRank:e.target.value?Math.max(1,Math.round(Number(e.target.value))):null,overrideAt:new Date().toISOString(),overrideBy:"کاربر جاری"})} placeholder="طبق مدل ورود"/></td><td><input aria-label={`دلیل رتبه ${c.name}`} value={c.overrideReason??""} onChange={e=>patchCase(c.id,{overrideReason:e.target.value,overrideAt:new Date().toISOString(),overrideBy:"کاربر جاری"})}/></td><td>{percent(c.minimumExecution)}</td><td>{c.maximumRate==null?"بدون سقف":percent(c.maximumRate)}</td></tr>)}</tbody></table></div>{!cases.length&&<p>ابتدا پرونده‌های این سال را ثبت کنید.</p>}<SourceOrderPolicy policy={sourcePolicy} onChange={setSourcePolicy} output={output} baselineOutput={baselineOutput}/><button onClick={()=>setView("cases")}>ویرایش نیاز و شروط پرونده‌ها <ArrowLeft/></button><button onClick={()=>setView("trace")}>مشاهده ردیابی محاسبات <Route/></button></section>}
-      {view === "dashboard" && <CapitalDecisionDesk output={output} contextName={contextName} financeConfirmed={financeStatus==="confirmed"} sourcePolicy={sourcePolicy} onOpen={id=>{setSelectedCase(id);setView("cases");}} onSources={()=>setView("capacity")} onPolicy={()=>setView("policy")}/>}
+      {view === "dashboard" && <div className="flow-open-action"><p>منبع تأمین هر طرح و علت نرسیدن پول را در مسیر سرمایه ببینید.</p><button onClick={()=>setView("trace")}>مشاهده نقشه جریان سرمایه <Route/></button></div>}
+      {(view==="dashboard"||view==="policy")&&<FundingImprovement input={{year:activeYear,financialInput:financial,portfolioActions:actions,projects:blocked?[]:Object.values(state.cases),sourcePolicy}} otherYears={CAPITAL_YEARS.filter(year=>year!==activeYear).map(year=>({year,financialInput:state.financialByYear[year]??{},portfolioActions:actions,projects:blockedYears.includes(year)?[]:Object.values(state.cases),sourcePolicy:{liquidityMode:"block",...fundingPolicyOnly(state.sourcePolicies?.[runKey]),...state.liquidityPoliciesByYear?.[`${runKey}:${year}`]}}))} onApply={setSourcePolicy}/>}
+      {view === "dashboard" && <CapitalDecisionDesk output={output} contextName={contextName} financeConfirmed={financeStatus==="confirmed"} sourcePolicy={sourcePolicy} onOpen={id=>{setSelectedCase(id);setView(output.results.find(r=>r.id===id)?.validation.valid?"trace":"cases");}} onSources={()=>setView("capacity")} onPolicy={()=>setView("policy")}/>}
 
-      {output.financial.reserveShortfall>0&&<section className="liquidity-policy" role="alert"><h3>ابتدا وضعیت نقدینگی را روشن کنید</h3><p>کسری پرداخت‌ها: {fa(Math.max(0,-output.financial.cashAfterPayments),0)} · کسری نسبت به حداقل ذخیره: {fa(output.financial.reserveShortfall,0)} میلیارد تومان. ثبت آورده یا بدهی به‌عنوان ظرفیت طرح، خودبه‌خود این کسری را پوشش نمی‌دهد. مبلغ وصول‌شده برای پوشش پرداخت‌های گروه در ورود نقد قابل اتکا ثبت شود و همزمان در ظرفیت طرح دوباره شماری نشود.</p><label>سیاست اجرای طرح در شرایط کسری<select aria-label="سیاست کسری نقد" value={sourcePolicy.liquidityMode} onChange={e=>setSourcePolicy({...sourcePolicy,liquidityMode:e.target.value as "block"|"restricted"})}><option value="block">توقف تخصیص جدید تا پوشش کسری</option><option value="restricted">استثنای مصوب: تأمین محدود به طرح</option></select></label>{sourcePolicy.liquidityMode==="restricted"&&<div className="restricted-source-choice"><p>فقط منابع دارای مجوز اختصاص به طرح را انتخاب کنید؛ سایر منابع در تخصیص استفاده نمی‌شوند.</p>{Object.entries(FUNDING_SOURCES).map(([key,info])=><label key={key}><input type="checkbox" checked={sourcePolicy.liquiditySources?.includes(key as FundingSource)??false} onChange={e=>setSourcePolicy({...sourcePolicy,liquiditySources:e.target.checked?[...(sourcePolicy.liquiditySources??[]),key as FundingSource]:(sourcePolicy.liquiditySources??[]).filter(s=>s!==key)})}/>{info.label}</label>)}<label>دلیل و حدود مجوز<input aria-label="دلیل استثنای کسری نقد" value={sourcePolicy.liquidityReason??""} onChange={e=>setSourcePolicy({...sourcePolicy,liquidityReason:e.target.value})} placeholder="منبعی که فقط برای اجرای طرح مجاز است و مرجع تصویب"/></label></div>}</section>}
+      {preparing&&output.financial.reserveShortfall>0&&<section className="liquidity-policy" role="alert"><h3>ابتدا وضعیت نقدینگی را روشن کنید</h3><p>کسری پرداخت‌ها: {fa(Math.max(0,-output.financial.cashAfterPayments),0)} · کسری نسبت به حداقل ذخیره: {fa(output.financial.reserveShortfall,0)} میلیارد تومان. ثبت آورده یا بدهی به‌عنوان ظرفیت طرح، خودبه‌خود این کسری را پوشش نمی‌دهد. مبلغ وصول‌شده برای پوشش پرداخت‌های گروه در ورود نقد قابل اتکا ثبت شود و همزمان در ظرفیت طرح دوباره شماری نشود.</p><label>سیاست اجرای طرح در شرایط کسری<select aria-label="سیاست کسری نقد" value={sourcePolicy.liquidityMode} onChange={e=>setSourcePolicy({...sourcePolicy,liquidityMode:e.target.value as "block"|"restricted"})}><option value="block">توقف تخصیص جدید تا پوشش کسری</option><option value="restricted">استثنای مصوب: تأمین محدود به طرح</option></select></label>{sourcePolicy.liquidityMode==="restricted"&&<div className="restricted-source-choice"><p>فقط منابع دارای مجوز اختصاص به طرح را انتخاب کنید؛ سایر منابع در تخصیص استفاده نمی‌شوند.</p>{Object.entries(FUNDING_SOURCES).map(([key,info])=><label key={key}><input type="checkbox" checked={sourcePolicy.liquiditySources?.includes(key as FundingSource)??false} onChange={e=>setSourcePolicy({...sourcePolicy,liquiditySources:e.target.checked?[...(sourcePolicy.liquiditySources??[]),key as FundingSource]:(sourcePolicy.liquiditySources??[]).filter(s=>s!==key)})}/>{info.label}</label>)}<label>دلیل و حدود مجوز<input aria-label="دلیل استثنای کسری نقد" value={sourcePolicy.liquidityReason??""} onChange={e=>setSourcePolicy({...sourcePolicy,liquidityReason:e.target.value})} placeholder="منبعی که فقط برای اجرای طرح مجاز است و مرجع تصویب"/></label></div>}</section>}
       {view === "capacity" && (
         <section className="financial-capacity-form">
           <header>
@@ -459,6 +445,7 @@ export default function CapitalAllocation({
               </small>
             </div>
           </header>
+          <div className="cash-preparation-equation" aria-label="محاسبه منابع داخلی">{([['نقد ابتدا و ورود قابل اتکا',['cashStart','reliableInflows']],['پرداخت‌ها و تعهدات',['requiredPayments','debtRepayment','dividends','priorCommitments']],['حداقل ذخیره نقد',['minimumCashReserve']]] as const).map(([label,keys],i)=><div key={label}><span>{i>0?'منهای · ':''}{label}</span><b>{keys.every(k=>financial[k]!=null)?fa(keys.reduce((n,k)=>n+(financial[k]??0),0),2):'نامشخص'}</b></div>)}<div><span>برابر · منابع داخلی قابل سرمایه‌گذاری</span><b>{output.financialValidation.valid?fa(output.capacity.internal,2):'نامشخص'}</b></div><small>میلیارد تومان · در صورت کسری، منابع داخلی صفر می‌شود؛ کسری جدا نمایش داده می‌شود. ارقام را در فرم زیر ویرایش کنید.</small></div>
           <div className="financial-form-grid">
             <article>
               <h4>نقد و منابع داخلی</h4>
@@ -672,7 +659,7 @@ export default function CapitalAllocation({
         </section>
       )}
 
-      {(view==="policy")&&<section className="capital-project-register"><header><h3>طرح‌ها و تصمیم قابل اقدام</h3><span>مبالغ: میلیارد تومان</span></header><div className="table-scroll"><table><thead><tr><th>طرح</th><th>اولویت تخصیص</th><th>نیاز سال</th><th>تأمین</th><th>وضعیت</th><th>قدم بعدی</th></tr></thead><tbody>{output.results.map(item=><tr key={item.id} className={selectedCaseRecord?.id===item.id?"selected":""}><td><button onClick={()=>{setSelectedCase(item.id);setView("cases");}}>{item.name}</button>{cases.find(c=>c.id===item.id)?.continuationOf&&<small>ادامه طرح سال {cases.find(c=>c.id===item.id)?.entryYear?.toLocaleString("fa-IR",{useGrouping:false})??"—"}</small>}</td><td>{item.overrideRank?`رتبه مصوب ${fa(item.overrideRank,0)}`:fa(item.entryPriority)}</td><td>{fa(item.annualNeed,0)}</td><td>{fa(item.executed,0)}</td><td><span className={item.validation.valid&&item.deferred===0?"confirmed":"pending"}>{item.decision}</span></td><td><button onClick={()=>{setSelectedCase(item.id);setView("cases");}}>{!item.validation.valid?"تکمیل ورودی":cases.find(c=>c.id===item.id)?.financialReviewRequired?"بازبینی مالی":item.deferred>0?"بررسی علت و شروط": "مشاهده پرونده"}</button><small>{item.reason}</small></td></tr>)}</tbody></table></div>{!cases.length&&<p>پرونده این سال ثبت نشده است؛ از برنامه ورود یا «ثبت پروژه مستقل» استفاده کنید.</p>}</section>}
+      {(view==="policy")&&<section className="capital-project-register"><header><h3>طرح‌ها و تصمیم قابل اقدام</h3><span>مبالغ: میلیارد تومان</span></header><div className="table-scroll"><table><thead><tr><th>طرح</th><th>اولویت تخصیص</th><th>نیاز سال</th><th>تأمین</th><th>وضعیت</th><th>قدم بعدی</th></tr></thead><tbody>{output.results.map(item=><tr key={item.id} className={selectedCaseRecord?.id===item.id?"selected":""}><td><button onClick={()=>{setSelectedCase(item.id);setView("cases");}}>{item.name}</button>{cases.find(c=>c.id===item.id)?.continuationOf&&<small>ادامه طرح سال {cases.find(c=>c.id===item.id)?.entryYear?.toLocaleString("fa-IR",{useGrouping:false})??"—"}</small>}</td><td>{item.overrideRank?`رتبه مصوب ${fa(item.overrideRank,0)}`:fa(item.entryPriority)}</td><td>{fa(item.annualNeed,0)}</td><td>{fa(item.executed,0)}</td><td><span className={item.validation.valid&&item.deferred===0?"confirmed":"pending"}>{item.decision}</span></td><td><button onClick={()=>{setSelectedCase(item.id);setView(item.validation.valid?"trace":"cases");}}>{!item.validation.valid?"تکمیل ورودی":cases.find(c=>c.id===item.id)?.financialReviewRequired?"بازبینی مالی":item.deferred>0?"بررسی علت و شروط": "مشاهده پرونده"}</button><small>{item.reason}</small></td></tr>)}</tbody></table></div>{!cases.length&&<p>پرونده این سال ثبت نشده است؛ از برنامه ورود یا «ثبت پروژه مستقل» استفاده کنید.</p>}</section>}
       {view === "cases" && (
         <div className="investment-cases-layout">
           <section className="case-directory">
@@ -731,6 +718,7 @@ export default function CapitalAllocation({
                   </button>
                 </header>
                 <div className="case-form-grid">
+                  <h4 className="case-group-heading">شناسه و نیاز مالی طرح</h4>
                   <label>
                     <span>روش ورود</span>
                     <select
@@ -788,6 +776,7 @@ export default function CapitalAllocation({
                       }
                     />
                   </label>
+                  <h4 className="case-group-heading">شروط اجرای طرح</h4>
                   <label>
                     <span>قابلیت اجرای مرحله‌ای</span>
                     <select
@@ -842,6 +831,7 @@ export default function CapitalAllocation({
                       <em>٪</em>
                     </div>
                   </label>
+                  <h4 className="case-group-heading">قواعد تأمین اختصاصی</h4>
                   <label>
                     <span>منبع اختصاصی</span>
                     <select
@@ -958,146 +948,13 @@ export default function CapitalAllocation({
       )}
 
 
-      {view === "executive" && <CapitalExecutiveSummary output={output} annualOutputs={annualOutputs} contextName={contextName} signal={executiveSignal} financeStatuses={state.financialStatusByYear??{}} blockedYears={blockedYears} onYear={onYear} onOpen={id=>{setSelectedCase(id);setView("cases");}}/>}
+      {view === "executive" && <CapitalExecutiveSummary output={output} annualOutputs={annualOutputs} contextName={contextName} signal={executiveSignal} financeStatuses={state.financialStatusByYear??{}} blockedYears={blockedYears} onYear={onYear} onOpen={id=>{setSelectedCase(id);setView(output.results.find(r=>r.id===id)?.validation.valid?"trace":"cases");}}/>}
 
+      {view==="executive"&&<DebtBridge outputs={annualOutputs} terms={state.debtTermsByRun?.[runKey]??{}} financial={state.financialByYear} onTerms={terms=>onState({...state,debtTermsByRun:{...state.debtTermsByRun,[runKey]:terms}})}/>}
       {view==="executive"&&<section className="allocation-evaluation-record"><header><h3>ثبت نسخه تصمیم</h3><p>این ثبت، ارقام سال، پرونده‌ها، ترتیب منابع و نتیجه را ثابت نگه می‌دارد؛ اصلاح بعدی ارزیابی جدید می‌خواهد.</p></header><div className="evaluation-record-form"><label>ثبت‌کننده<input aria-label="ثبت‌کننده ارزیابی" value={approvalActor} onChange={e=>setApprovalActor(e.target.value)}/></label><label>دلیل یا مصوبه<input aria-label="دلیل ثبت ارزیابی" value={approvalReason} onChange={e=>setApprovalReason(e.target.value)}/></label><button onClick={()=>saveEvaluation("draft")}>ثبت پیش‌نویس</button><button onClick={()=>saveEvaluation("approved")}>ثبت ارزیابی تأییدشده</button></div><details><summary>نسخه‌های ثبت‌شده این سال ({fa(evaluations.length,0)})</summary>{evaluations.map(e=><article key={e.id}><b>{e.status==="approved"?"تأییدشده":"پیش‌نویس"}</b><span> · {new Date(e.createdAt).toLocaleString("fa-IR")} · {e.signature===currentSignature?"مطابق ورودی جاری":"ورودی جاری تغییر کرده؛ نسخه ثبت‌شده مستقل است"}</span><p>{e.actor||"ثبت‌کننده تعیین نشده"} · {e.reason||"دلیل تعیین نشده"}</p><p>نیاز: {summarizeCapital(e.output).need==null?"نامشخص":fa(summarizeCapital(e.output).need!,0)} · تأمین: {fa(e.output.totalExecuted,0)} · تعویق: {summarizeCapital(e.output).gap==null?"نامشخص":fa(summarizeCapital(e.output).gap!,0)} میلیارد تومان</p><details><summary>ورودی‌ها و تصمیم‌های همین نسخه</summary><p>نقد پس از پرداخت‌ها: {fa(e.output.financial.cashAfterPayments,0)} · کسری ذخیره: {fa(e.output.financial.reserveShortfall,0)}</p>{e.output.results.map(c=><p key={c.id}>{c.name} · نیاز {c.validation.valid?fa(c.annualNeed,0):"نامشخص"} · تأمین {fa(c.executed,0)} · {c.decision}</p>)}</details></article>)}</details></section>}
-      {view === "trace" && (
-        <section className="allocation-trace">
-          <header>
-            <div>
-              <span>ردیابی ساده الگوریتم</span>
-              <h3>دفاع مرحله‌به‌مرحله از تصمیم تخصیص</h3>
-              <p>
-                هر مرحله فقط نیاز باقی‌مانده، ظرفیت واقعی، سقف بدهی و مجازبودن
-                نرخ را بررسی می‌کند.
-              </p>
-            </div>
-            <label>
-              <span>پرونده</span>
-              <select
-                value={selectedResult?.id ?? ""}
-                onChange={(event) => setSelectedCase(event.target.value)}
-              >
-                {output.results.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </header>
-          {selectedResult ? (
-            <>
-              <div className="trace-summary">
-                <div>
-                  <span>نیاز سال</span>
-                  <b>{fa(selectedResult.annualNeed, 0)}</b>
-                </div>
-                <div>
-                  <span>حداقل لازم برای اجرا</span>
-                  <b>{fa(selectedResult.minimumRequired, 0)}</b>
-                </div>
-                <div>
-                  <span>تأمین موقت</span>
-                  <b>{fa(selectedResult.temporaryFunding, 0)}</b>
-                </div>
-                <strong
-                  className={`allocation-decision ${selectedResult.decision === "تأمین کامل" ? "full" : selectedResult.decision === "تأمین جزئی" ? "partial" : "deferred"}`}
-                >
-                  {selectedResult.decision}
-                </strong>
-              </div>
-              <div className="trace-flow">
-                {selectedResult.trace.map((stage, index) => (
-                  <article
-                    key={`${stage.stage}-${index}`}
-                    className={
-                      !stage.rateAllowed || stage.allocation === 0
-                        ? "muted"
-                        : "allocated"
-                    }
-                  >
-                    <div className="trace-index">
-                      {(index + 1).toLocaleString("fa-IR")}
-                    </div>
-                    <header>
-                      <span>{stage.stage}</span>
-                      <b>
-                        {stage.source
-                          ? FUNDING_SOURCES[stage.source].label
-                          : "بدون منبع"}
-                      </b>
-                    </header>
-                    <div className="trace-math">
-                      <span>
-                        <small>نیاز قبل</small>
-                        <b>{fa(stage.needBefore, 0)}</b>
-                      </span>
-                      <i>−</i>
-                      <span>
-                        <small>تخصیص</small>
-                        <b>{fa(stage.allocation, 0)}</b>
-                      </span>
-                      <i>=</i>
-                      <span>
-                        <small>نیاز بعد</small>
-                        <b>{fa(stage.needAfter, 0)}</b>
-                      </span>
-                    </div>
-                    <dl>
-                      <div>
-                        <dt>ظرفیت اسمی</dt>
-                        <dd>{fa(stage.nominalCapacity, 0)}</dd>
-                      </div>
-                      <div>
-                        <dt>مصرف قبلی</dt>
-                        <dd>{fa(stage.previousUse, 0)}</dd>
-                      </div>
-                      <div>
-                        <dt>ظرفیت قابل استفاده</dt>
-                        <dd>{fa(stage.usableCapacity, 0)}</dd>
-                      </div>
-                      <div>
-                        <dt>سقف بدهی باقی</dt>
-                        <dd>{fa(stage.remainingDebtCeiling, 0)}</dd>
-                      </div>
-                      <div>
-                        <dt>نرخ</dt>
-                        <dd>{percent(stage.rate)}</dd>
-                      </div>
-                      <div>
-                        <dt>نرخ مجاز؟</dt>
-                        <dd>{stage.rateAllowed ? "بله" : "خیر"}</dd>
-                      </div>
-                    </dl>
-                    <p>{stage.note}</p>
-                  </article>
-                ))}
-              </div>
-              <footer className="trace-decision">
-                <ShieldCheck />
-                <div>
-                  <b>{selectedResult.reason}</b>
-                  <p>
-                    تأمین‌شده {fa(selectedResult.executed, 0)} و تعویق{" "}
-                    {fa(selectedResult.deferred, 0)} میلیارد تومان؛ جمع دقیقاً
-                    با نیاز سال برابر است.
-                  </p>
-                </div>
-              </footer>
-            </>
-          ) : (
-            <div className="capital-empty">
-              <Route />
-              <b>ردیابی هنوز در دسترس نیست</b>
-              <p>
-                پس از تکمیل حداقل یک پرونده سرمایه‌گذاری، مسیر پنج‌مرحله‌ای
-                تخصیص اینجا نمایش داده می‌شود.
-              </p>
-            </div>
-          )}
-        </section>
-      )}
+      {view === "trace" && <CapitalFlow output={output} selectedId={selectedCase} onSelect={setSelectedCase} onEdit={id=>{setSelectedCase(id);setView("cases");}} onResources={()=>setView("capacity")} onPolicy={()=>setView("policy")} onDecision={()=>setView("executive")} revisionKey={currentSignature}/>}
+      {preparing&&<section className="capital-preparation-check"><div><b>{output.financialValidation.valid&&cases.length>0&&cases.every(c=>output.results.find(r=>r.id===c.id)?.validation.valid)&&!blocked&&!output.reservationConflict&&output.policyValid&&!output.liquidityBlocked?"محاسبه آماده بررسی است":"موارد نیازمند تکمیل یا رفع مانع وجود دارد"}</b><p>{!output.financialValidation.valid?output.financialValidation.errors[0]:blocked?"تعارض سناریو را برطرف کنید.":!cases.length?"ابتدا نیاز طرح‌های سال را ثبت کنید.":output.results.some(r=>!r.validation.valid)?"ورودی‌های ناقص پرونده‌ها را تکمیل کنید.":output.reservationConflict?"رزروها از ظرفیت یا سقف بدهی بیشترند.":!output.policyValid?"مجوزها و اطلاعات سیاست تأمین را تکمیل کنید.":output.liquidityBlocked?"کسری نقدینگی، تخصیص جدید را متوقف کرده است.":financeStatus!=="confirmed"?"نتیجه، پیش‌نمایش است؛ ارقام سال هنوز تأیید نشده‌اند.":"می‌توانید نتیجه و مسیر تأمین هر طرح را مرور کنید."}</p></div><button onClick={()=>setView("dashboard")}>بررسی نتیجه طرح‌ها <ArrowLeft size={17}/></button></section>}
+
     </div>
   );
 }

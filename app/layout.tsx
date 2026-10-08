@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./visual-standards.css";
+import "./capital-story.css";
+import "./decision-density.css";
 
 export const metadata: Metadata = {
   title: "سامانه هوشمند خط‌مشی سرمایه‌گذاری | آتیه فولاد",

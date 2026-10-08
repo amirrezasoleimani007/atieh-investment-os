@@ -1,6 +1,7 @@
 export type FundingSource = "internal" | "shortDebt" | "longDebt" | "partner" | "disposal";
 type SourceAmounts = Record<FundingSource, number>;
 export type CapitalProject = {
+  entryMode?:import("./entry-route.mjs").EntryMode;
   id: string;
   name: string;
   parentName: string;
@@ -23,14 +24,30 @@ export type CapitalProject = {
 };
 export type CapitalTraceStage = {
   stage: string;
+  selectionNote?:string|null;
+  stageKind?:"dedicated"|"general"; dedicatedLimit?:number|null; selectionReason?:"dedicated_reserved"|"dedicated_preferred"|"custom_order"|"default_order";
   source: FundingSource | null;
   needBefore: number;
   nominalCapacity: number;
   previousUse: number;
+  usedByEarlier?:number; temporaryBefore?:number;
   remainingDebtCeiling: number;
   usableCapacity: number;
   rate: number | null;
   rateAllowed: boolean;
+  eligible?: boolean;
+  permittedByLiquidity?: boolean;
+  reservedForOthers?: number;
+  sourceRemaining?: number;
+  consumers?: {id:string;name:string;amount:number}[];
+  debtConsumers?: {id:string;name:string;amount:number}[];
+  debtReservationHolders?: {id:string;name:string;amount:number}[];
+  reservationHolders?: {id:string;name:string;amount:number}[];
+  reasonCode?: string;
+  constraints?: string[];
+  status?: string;
+  finalAllocation?: number;
+  releasedAllocation?: number;
   allocation: number;
   needAfter: number;
   note: string;
@@ -38,8 +55,17 @@ export type CapitalTraceStage = {
 export type FinancialCapacity = {
   cashAfterPayments: number; internal: number; reserveShortfall: number;
   shortDebt: number; shortDebtRate: number; longDebt: number; longDebtRate: number;
-  debtCeiling: number; effectiveDebt: number; partner: number;
+  debtCeiling: number; debtCeilingGross:number; debtAlreadyDrawn:number; effectiveDebt: number; partner: number;
   overlaps: {shortDebt:number;longDebt:number;partner:number;disposal:number};
+};
+export type CapitalTurnState = {
+  used:SourceAmounts; otherReserved:SourceAmounts; remaining:SourceAmounts;
+  remainingDebtCeiling:number; ownReservation:number;
+};
+export type CapitalAudit = {
+  version:1; position:number; priorityBasis:"managerial"|"entry"|"score";
+  priorProjects:{id:string;name:string;executed:number}[];
+  start:CapitalTurnState; end:CapitalTurnState; assessed:boolean;
 };
 export type CapitalOutput = {
   year: number;
@@ -55,6 +81,7 @@ export type CapitalOutput = {
   results: (CapitalProject & {
     decision: string; executed: number; deferred: number; allocations: SourceAmounts;
     reason: string; trace: CapitalTraceStage[]; validation: { valid: boolean; errors: string[] };
+    audit?:CapitalAudit;
     minimumRequired?: number; temporaryFunding?: number; passedMinimum?: boolean;
   })[];
   checks: Record<string, boolean>;
@@ -86,7 +113,8 @@ export function allocationSourceRows(output: CapitalOutput): {
   reserved: number; remaining: number; utilization: number | null;
 }[];
 
-export type SourcePolicy = {liquidityMode?: "block"|"restricted"; liquidityReason?:string; liquiditySources?:FundingSource[];orders?: Record<string, FundingSource[]>; dedicatedFirst?: boolean; reason?: string; updatedAt?: string};
+export type SourcePolicy = {liquidityMode?: "block"|"restricted"; liquidityReason?:string; liquiditySources?:FundingSource[];orders?: Record<string, FundingSource[]>; allowedSources?:Record<string,FundingSource[]>; dedicatedFirst?: boolean; reason?: string; updatedAt?: string};
+export const TRACE_REASONS: Readonly<Record<string,string>>;
 export function normalizedSourceOrder(needType: string, order?: FundingSource[]): FundingSource[];
 export function validateSourcePolicy(policy?: SourcePolicy): boolean;
 export function sourcePolicyRequiresReason(policy?: SourcePolicy): boolean;

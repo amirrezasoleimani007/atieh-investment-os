@@ -108,6 +108,7 @@ export default function SourceOrderPolicy({
       liquidityReason: policy.liquidityReason,
       liquiditySources: policy.liquiditySources,
       dedicatedFirst: true,
+      allowedSources: policy.allowedSources,
     });
   const reasonRequired=sourcePolicyRequiresReason(policy);
 
@@ -117,7 +118,7 @@ export default function SourceOrderPolicy({
         <div>
           <span><Sparkles /> سیاست آبشار منابع</span>
           <h3>اولویت تأمین مالی بر اساس نوع نیاز</h3>
-          <p>هر شش نوع نیاز به هر پنج روش تأمین دسترسی دارد. رتبه فقط ترتیب استفاده را تعیین می‌کند و ظرفیت واقعی، سقف بدهی، نرخ مجاز و حداقل اجرای طرح همچنان کنترل می‌شوند.</p>
+          <p>ابتدا منابع مجاز این نوع نیاز را مشخص کنید؛ سپس ترتیب استفاده را بچینید. ظرفیت واقعی، سقف بدهی، نرخ مجاز و حداقل اجرای طرح همیشه کنترل می‌شوند. مجاز بودن منبع، تأیید تناسب سررسید یا صرفه اقتصادی آن نیست.</p>
         </div>
         <button className="policy-reset" onClick={reset}><RotateCcw /> بازگشت به ترتیب مصوب</button>
       </header>
@@ -140,13 +141,14 @@ export default function SourceOrderPolicy({
           <span>نوع نیاز منتخب</span>
           <h4>{needLabel(selectedNeed)}</h4>
           <p>{NEED_INTENT[selectedNeed]}</p>
-          <div className="policy-legend"><i /> اولویت بالاتر یعنی استفاده زودتر؛ حذف هیچ منبعی انجام نمی‌شود.</div>
+          <div className="policy-legend"><i /> اولویت بالاتر یعنی استفاده زودتر؛ منبع غیرمجاز در محاسبه مصرف نمی‌شود.</div>
         </div>
         <ol className="source-priority-list">
           {order.map((source, index) => (
             <li key={source} className={index === 0 ? "primary" : index === order.length - 1 ? "fallback" : ""}>
               <strong>{(index + 1).toLocaleString("fa-IR")}</strong>
               <div><b>{FUNDING_SOURCES[source].label}</b><small>{SOURCE_GUIDANCE[selectedNeed]?.[source]}</small></div>
+              <label className="source-eligible"><input type="checkbox" aria-label={`مجاز بودن ${FUNDING_SOURCES[source].label} برای ${needLabel(selectedNeed)}`} checked={(policy.allowedSources?.[selectedNeed]??order).includes(source)} onChange={e=>{const current=policy.allowedSources?.[selectedNeed]??order;onChange({...policy,allowedSources:{...policy.allowedSources,[selectedNeed]:e.target.checked?[...current,source]:current.filter(s=>s!==source)}});}}/>مجاز</label>
               <span>{index === 0 ? "اولویت نخست" : index === order.length - 1 ? "پشتیبان نهایی" : `اولویت ${(index + 1).toLocaleString("fa-IR")}`}</span>
               <nav>
                 <button disabled={index === 0} aria-label={`افزایش تقدم ${FUNDING_SOURCES[source].label}`} onClick={() => move(index, -1)}><ArrowUp /></button>
@@ -163,7 +165,7 @@ export default function SourceOrderPolicy({
       </div>
 
       <div className="source-policy-impact"><h4>اثر زنده سیاست بر تأمین طرح‌ها</h4>{output.results.map((item) => { const baseline = baselineOutput.results.find((row) => row.id === item.id); const delta = item.executed - (baseline?.executed ?? 0); return <p key={item.id}><b>{item.name}</b><span>{fa(item.executed)} میلیارد تومان · {Math.abs(delta) < 0.01 ? "میزان تأمین بدون تغییر" : `${delta > 0 ? "افزایش" : "کاهش"} ${fa(Math.abs(delta))}`}</span></p>; })}</div>
-      <details className="source-policy-comparison"><summary>مقایسه تخصیص با ترتیب مصوب</summary><p>هر دو محاسبه با طرح‌ها، رتبه مدیریتی، نیاز و منابع یکسان اجرا می‌شوند؛ تفاوت فقط ترتیب استفاده از منابع است.</p><div className="table-scroll"><table><thead><tr><th>منبع</th><th>ترتیب مصوب</th><th>سیاست جاری</th></tr></thead><tbody>{Object.entries(FUNDING_SOURCES).map(([key, value]) => <tr key={key}><td>{value.label}</td><td>{fa(baselineOutput.used[key as keyof typeof baselineOutput.used])}</td><td>{fa(output.used[key as keyof typeof output.used])}</td></tr>)}</tbody></table></div><p>تأمین با ترتیب مصوب: {fa(baselineOutput.totalExecuted)} · تأمین با سیاست جاری: {fa(output.totalExecuted)} میلیارد تومان</p></details>
+      <details className="source-policy-comparison"><summary>مقایسه تخصیص با ترتیب مصوب</summary><p>هر دو محاسبه با طرح‌ها، رتبه مدیریتی، نیاز و منابع یکسان اجرا می‌شوند؛ تفاوت در ترتیب و مجاز بودن منابع است.</p><div className="table-scroll"><table><thead><tr><th>منبع</th><th>ترتیب مصوب</th><th>سیاست جاری</th></tr></thead><tbody>{Object.entries(FUNDING_SOURCES).map(([key, value]) => <tr key={key}><td>{value.label}</td><td>{fa(baselineOutput.used[key as keyof typeof baselineOutput.used])}</td><td>{fa(output.used[key as keyof typeof output.used])}</td></tr>)}</tbody></table></div><p>تأمین با ترتیب مصوب: {fa(baselineOutput.totalExecuted)} · تأمین با سیاست جاری: {fa(output.totalExecuted)} میلیارد تومان</p></details>
     </section>
   );
 }

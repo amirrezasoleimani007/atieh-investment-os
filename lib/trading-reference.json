@@ -1,0 +1,469 @@
+{
+  "method": "trade-expansion-v2",
+  "baseYear": 1400,
+  "ceiling": 0.06429406372508323,
+  "reference": [
+    {
+      "id": 1,
+      "service": 18.919751466561113,
+      "steelTransaction": 0.0019468624443658641,
+      "legacyCore": 0.9111434861438904
+    },
+    {
+      "id": 2,
+      "service": 10.318147830411917,
+      "steelTransaction": 0.0008332674205295267,
+      "legacyCore": 0.4076011881112226
+    },
+    {
+      "id": 3,
+      "service": 19.737555407730685,
+      "steelTransaction": 0.0027523932331911948,
+      "legacyCore": 0
+    },
+    {
+      "id": 4,
+      "service": 17.044386819931958,
+      "steelTransaction": 0.005607064929329467,
+      "legacyCore": 0.8408196622690702
+    },
+    {
+      "id": 5,
+      "service": 20.506181307694675,
+      "steelTransaction": 0.0003410547196939577,
+      "legacyCore": 0.9622698119688045
+    },
+    {
+      "id": 6,
+      "service": 29.510437520872117,
+      "steelTransaction": 0.007104381264048013,
+      "legacyCore": 1.8167392019834674
+    },
+    {
+      "id": 7,
+      "service": 42.79998518154048,
+      "steelTransaction": 0.005445731780671634,
+      "legacyCore": 3.1069727612516522
+    },
+    {
+      "id": 8,
+      "service": 40.65223710542854,
+      "steelTransaction": 0.09427217987306438,
+      "legacyCore": 3.2070116683338368
+    },
+    {
+      "id": 9,
+      "service": 26.822489943165742,
+      "steelTransaction": 0.013228134871658963,
+      "legacyCore": 2.4140240948849163
+    },
+    {
+      "id": 10,
+      "service": 4.55737355087661,
+      "steelTransaction": 0.0024112578630474772,
+      "legacyCore": 0.3022061694752826
+    },
+    {
+      "id": 11,
+      "service": 20.880585587885143,
+      "steelTransaction": 0.007637353337468041,
+      "legacyCore": 1.7067646460115458
+    },
+    {
+      "id": 12,
+      "service": 12.924079919736084,
+      "steelTransaction": 0.0017358737079805383,
+      "legacyCore": 0.8784976520908238
+    },
+    {
+      "id": 13,
+      "service": 22.35713179845375,
+      "steelTransaction": 0.0039217797979669775,
+      "legacyCore": 1.7252553382326166
+    },
+    {
+      "id": 14,
+      "service": 27.751292848155117,
+      "steelTransaction": 0.008084468524330389,
+      "legacyCore": 2.4976163563339613
+    },
+    {
+      "id": 15,
+      "service": 35.70100846209239,
+      "steelTransaction": 0.0034998001910859946,
+      "legacyCore": 3.0617770716879367
+    },
+    {
+      "id": 16,
+      "service": 23.97280272596898,
+      "steelTransaction": 0.002336413297714967,
+      "legacyCore": 2.157552245337208
+    },
+    {
+      "id": 17,
+      "service": 32.51487618822133,
+      "steelTransaction": 0.000884508768389282,
+      "legacyCore": 1.2736765526244032
+    },
+    {
+      "id": 18,
+      "service": 33.33526716682085,
+      "steelTransaction": 0.001870370857101105,
+      "legacyCore": 1.2409896891055046
+    },
+    {
+      "id": 19,
+      "service": 36.39136995038578,
+      "steelTransaction": 0.02228371121948477,
+      "legacyCore": 2.583518390140288
+    },
+    {
+      "id": 20,
+      "service": 25.783124375228343,
+      "steelTransaction": 0.017097332906970634,
+      "legacyCore": 1.875746592259962
+    },
+    {
+      "id": 21,
+      "service": 30.54993507390399,
+      "steelTransaction": 0.007071743179294005,
+      "legacyCore": 2.747484427257225
+    },
+    {
+      "id": 22,
+      "service": 35.01923895815414,
+      "steelTransaction": 0.008453636652298696,
+      "legacyCore": 2.456602110245124
+    },
+    {
+      "id": 23,
+      "service": 33.8199195085123,
+      "steelTransaction": 0.01829517255630549,
+      "legacyCore": 3.0437927557661073
+    },
+    {
+      "id": 24,
+      "service": 20.378429092573235,
+      "steelTransaction": 0.24424279005623292,
+      "legacyCore": 1.8340586183315912
+    },
+    {
+      "id": 25,
+      "service": 27.398590228154795,
+      "steelTransaction": 0.1628716368617223,
+      "legacyCore": 2.4658731205339315
+    },
+    {
+      "id": 26,
+      "service": 31.37037817825645,
+      "steelTransaction": 0.02617694644241679,
+      "legacyCore": 2.823334036043081
+    },
+    {
+      "id": 27,
+      "service": 26.323814275977565,
+      "steelTransaction": 0.08498619345768656,
+      "legacyCore": 2.369143284837981
+    },
+    {
+      "id": 28,
+      "service": 17.37521837107133,
+      "steelTransaction": 0.0591210312919323,
+      "legacyCore": 1.5637696533964203
+    },
+    {
+      "id": 29,
+      "service": 27.313552185219656,
+      "steelTransaction": 0.01895887296958187,
+      "legacyCore": 2.4582196966697687
+    },
+    {
+      "id": 30,
+      "service": 7.02373274734115,
+      "steelTransaction": 0.02962324694106475,
+      "legacyCore": 0.6321359472607037
+    },
+    {
+      "id": 31,
+      "service": 24.60222825823528,
+      "steelTransaction": 0.036533611451057005,
+      "legacyCore": 2.2142005432411755
+    },
+    {
+      "id": 32,
+      "service": 34.89077373271017,
+      "steelTransaction": 0.02120523018567255,
+      "legacyCore": 3.0755526923605254
+    },
+    {
+      "id": 33,
+      "service": 10.388107475873793,
+      "steelTransaction": 0.022286075245499935,
+      "legacyCore": 0.8186390440132023
+    },
+    {
+      "id": 34,
+      "service": 42.52149892612724,
+      "steelTransaction": 0.006375131426043152,
+      "legacyCore": 2.4920029116906957
+    },
+    {
+      "id": 35,
+      "service": 49.285036562120425,
+      "steelTransaction": 0.0051916247891388104,
+      "legacyCore": 2.319560958175501
+    },
+    {
+      "id": 36,
+      "service": 33.068558627668935,
+      "steelTransaction": 0.014072623019326758,
+      "legacyCore": 2.5394156222770987
+    },
+    {
+      "id": 37,
+      "service": 4.252697677825171,
+      "steelTransaction": 0.005485909455344856,
+      "legacyCore": 0.3827427910042655
+    },
+    {
+      "id": 38,
+      "service": 12.299121104769238,
+      "steelTransaction": 0.040447710174699426,
+      "legacyCore": 1.1069208994292314
+    },
+    {
+      "id": 39,
+      "service": 12.299121104769238,
+      "steelTransaction": 0.040447710174699426,
+      "legacyCore": 1.1069208994292314
+    },
+    {
+      "id": 40,
+      "service": 26.34675146181925,
+      "steelTransaction": 0.04070871980460094,
+      "legacyCore": 2.3712076315637334
+    },
+    {
+      "id": 41,
+      "service": 79.79873488228887,
+      "steelTransaction": 0.027170431459369652,
+      "legacyCore": 9
+    },
+    {
+      "id": 42,
+      "service": 57.07671568813552,
+      "steelTransaction": 0.004117477816025306,
+      "legacyCore": 3.1034088309239505
+    },
+    {
+      "id": 43,
+      "service": 51.07241138803791,
+      "steelTransaction": 0.0012885993197213367,
+      "legacyCore": 3.1038394071839592
+    },
+    {
+      "id": 44,
+      "service": 56.08105223386183,
+      "steelTransaction": 0.0012977314303321066,
+      "legacyCore": 3.436242938746037
+    },
+    {
+      "id": 45,
+      "service": 29.162269559105237,
+      "steelTransaction": 0.0020611917649670745,
+      "legacyCore": 1.1436011149278076
+    },
+    {
+      "id": 46,
+      "service": 49.794190299208736,
+      "steelTransaction": 0.024774324512449014,
+      "legacyCore": 3.8185217533077136
+    },
+    {
+      "id": 47,
+      "service": 34.17102239676371,
+      "steelTransaction": 0.004459193526664837,
+      "legacyCore": 1.4064441978801785
+    },
+    {
+      "id": 48,
+      "service": 47.931555723602195,
+      "steelTransaction": 0.007269988648778694,
+      "legacyCore": 3.762476147408909
+    },
+    {
+      "id": 49,
+      "service": 32.22119222890606,
+      "steelTransaction": 0.0022857775762943136,
+      "legacyCore": 2.080444079997119
+    },
+    {
+      "id": 50,
+      "service": 70.7876405814015,
+      "steelTransaction": 0.005389001833201004,
+      "legacyCore": 4.219924947337803
+    },
+    {
+      "id": 51,
+      "service": 43.647089670828585,
+      "steelTransaction": 0.002117887241870581,
+      "legacyCore": 0.8614787686006026
+    },
+    {
+      "id": 52,
+      "service": 79.79873488228887,
+      "steelTransaction": 0.0022581416139588672,
+      "legacyCore": 9
+    },
+    {
+      "id": 53,
+      "service": 23.01322975880144,
+      "steelTransaction": 0.0006569904937642609,
+      "legacyCore": 1.6244588718690656
+    },
+    {
+      "id": 54,
+      "service": 20.65381386202816,
+      "steelTransaction": 0.0011709301959858809,
+      "legacyCore": 1.4931268911198177
+    },
+    {
+      "id": 55,
+      "service": 35.50935395507339,
+      "steelTransaction": 0.002155274280917592,
+      "legacyCore": 1.3481483454644725
+    },
+    {
+      "id": 56,
+      "service": 36.816515808435,
+      "steelTransaction": 0.0006682760839128857,
+      "legacyCore": 1.4976496373621109
+    },
+    {
+      "id": 57,
+      "service": 55.631336167459615,
+      "steelTransaction": 0.006995578641639442,
+      "legacyCore": 3.0460340961663053
+    },
+    {
+      "id": 58,
+      "service": 45.795784518601685,
+      "steelTransaction": 0.00025642550537194564,
+      "legacyCore": 2.575672795888082
+    },
+    {
+      "id": 59,
+      "service": 52.86031470535583,
+      "steelTransaction": 0.00129959687471604,
+      "legacyCore": 2.3625885438566
+    },
+    {
+      "id": 60,
+      "service": 8.938390215342766,
+      "steelTransaction": 0.00021063483932625722,
+      "legacyCore": 0
+    },
+    {
+      "id": 61,
+      "service": 18.09819679258611,
+      "steelTransaction": 0.00017643279062660143,
+      "legacyCore": 0.2072798667126026
+    },
+    {
+      "id": 62,
+      "service": 18.09819679258611,
+      "steelTransaction": 0.00017643279062660143,
+      "legacyCore": 0.2072798667126026
+    },
+    {
+      "id": 63,
+      "service": 30.06578818782917,
+      "steelTransaction": 0.0005697001172505385,
+      "legacyCore": 0.4407518079843148
+    },
+    {
+      "id": 64,
+      "service": 48.451044037977084,
+      "steelTransaction": 0.0003948408715634996,
+      "legacyCore": 0.42119174526829806
+    },
+    {
+      "id": 65,
+      "service": 26.20095686022222,
+      "steelTransaction": 0.00164159279246944,
+      "legacyCore": 1.400908677582603
+    },
+    {
+      "id": 66,
+      "service": 56.961633250113515,
+      "steelTransaction": 0.0035505154787629613,
+      "legacyCore": 3.705551863532558
+    },
+    {
+      "id": 67,
+      "service": 7.033849245470974,
+      "steelTransaction": 0.0006114372025007499,
+      "legacyCore": 0.41714579139160274
+    },
+    {
+      "id": 68,
+      "service": 31.23475070740554,
+      "steelTransaction": 0.0010990903926111361,
+      "legacyCore": 1.1814979032327262
+    },
+    {
+      "id": 69,
+      "service": 1.8737558333981716,
+      "steelTransaction": 0.013109330052027792,
+      "legacyCore": 0.09896598459076204
+    },
+    {
+      "id": 70,
+      "service": 1.8737558333981716,
+      "steelTransaction": 0.013109330052027792,
+      "legacyCore": 0.09896598459076204
+    },
+    {
+      "id": 71,
+      "service": 19.859221261639565,
+      "steelTransaction": 0.0010481776746681653,
+      "legacyCore": 0
+    },
+    {
+      "id": 72,
+      "service": 45.0392884424639,
+      "steelTransaction": 0.0011360608863528036,
+      "legacyCore": 1.489447958365443
+    },
+    {
+      "id": 73,
+      "service": 20.1946250940943,
+      "steelTransaction": 0.0008732735222043561,
+      "legacyCore": 0.48675745273479354
+    },
+    {
+      "id": 74,
+      "service": 41.77392129589121,
+      "steelTransaction": 0.0006155558916932704,
+      "legacyCore": 2.456816722368824
+    },
+    {
+      "id": 75,
+      "service": 24.315832764038284,
+      "steelTransaction": 0.0009845469630240659,
+      "legacyCore": 1.3505239312130786
+    },
+    {
+      "id": 76,
+      "service": 41.97831508193268,
+      "steelTransaction": 0.0018315618762694314,
+      "legacyCore": 0.9722672284802247
+    },
+    {
+      "id": 77,
+      "service": 54.33323399717733,
+      "steelTransaction": 0.0029772982239976396,
+      "legacyCore": 2.758950773093764
+    }
+  ]
+}

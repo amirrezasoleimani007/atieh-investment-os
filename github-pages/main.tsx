@@ -1,6 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@/app/globals.css";
+import "@/app/visual-standards.css";
+import "@/app/capital-story.css";
+import "@/app/decision-density.css";
 import InvestmentOS from "@/components/investment-os";
 import AccessGate from "@/components/access-gate";
 import companies from "@/public/data/companies.json";
