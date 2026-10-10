@@ -1,0 +1,116 @@
+{
+  "unit": "million-rial",
+  "source": "جدول ارائه‌شده توسط مدیریت؛ مبالغ منتسب عیناً از ستون سهم خوانده می‌شوند؛ درصدهای سهامداری گرد شده‌اند.",
+  "companies": [
+    {
+      "name": "آتیه تجارت نقش جهان قشم",
+      "year": 1404,
+      "nature": "بازرگانی/خدماتی",
+      "equity": 799331,
+      "attributedEquity": 439632.05,
+      "profit": 548296,
+      "attributedProfit": 301563,
+      "ownershipPercent": 55,
+      "parenting": "strategic"
+    },
+    {
+      "name": "آتیه صنعت افق نقش جهان",
+      "year": 1404,
+      "nature": "تولیدی",
+      "equity": 2286356,
+      "attributedEquity": 2194898.373,
+      "profit": 679076,
+      "attributedProfit": 651912,
+      "ownershipPercent": 96,
+      "parenting": "strategic"
+    },
+    {
+      "name": "پولای بهیز",
+      "year": 1404,
+      "nature": "بازرگانی/خدماتی",
+      "equity": 1043760,
+      "attributedEquity": 1043760.091,
+      "profit": 959261,
+      "attributedProfit": 959261,
+      "ownershipPercent": 100,
+      "parenting": "strategic"
+    },
+    {
+      "name": "توکا رنگ فولاد سپاهان",
+      "year": 1404,
+      "nature": "تولیدی",
+      "equity": 5094331,
+      "attributedEquity": 1618130.986,
+      "profit": 2651579,
+      "attributedProfit": 842231,
+      "ownershipPercent": 32,
+      "parenting": "financial"
+    },
+    {
+      "name": "صنایع برش ورق فولادی مبارکه",
+      "year": 1404,
+      "nature": "بازرگانی/خدماتی",
+      "equity": 4725230,
+      "attributedEquity": 1654019.273,
+      "profit": 3314439,
+      "attributedProfit": 1160186,
+      "ownershipPercent": 35,
+      "parenting": "financial"
+    },
+    {
+      "name": "صندوق پژوهش و فناوری مواد پیشرفته و انرژی",
+      "year": 1404,
+      "nature": "مالی",
+      "equity": 2031860,
+      "attributedEquity": 670513.8,
+      "profit": 513538,
+      "attributedProfit": 169468,
+      "ownershipPercent": 33,
+      "parenting": "financial"
+    },
+    {
+      "name": "فولاد متیل",
+      "year": 1404,
+      "nature": "بازرگانی/خدماتی",
+      "equity": 60976100,
+      "attributedEquity": 45741087.65,
+      "profit": 20119980,
+      "attributedProfit": 15092959,
+      "ownershipPercent": 75,
+      "parenting": "strategic"
+    },
+    {
+      "name": "کارگزاری مبین سرمایه",
+      "year": 1404,
+      "nature": "مالی",
+      "equity": 8336258,
+      "attributedEquity": 2625921.27,
+      "profit": 2020299,
+      "attributedProfit": 636394,
+      "ownershipPercent": 32,
+      "parenting": "financial"
+    },
+    {
+      "name": "نورد لوله کوثر صنعت اسپادانا",
+      "year": 1404,
+      "nature": "تولیدی",
+      "equity": 16562193,
+      "attributedEquity": 11028762.13,
+      "profit": 559513,
+      "attributedProfit": 372580,
+      "ownershipPercent": 67,
+      "parenting": "strategic"
+    },
+    {
+      "name": "ورق خودرو چهارمحال بختیاری",
+      "year": 1404,
+      "nature": "تولیدی",
+      "equity": 75181037,
+      "attributedEquity": 13007306,
+      "profit": 24146938,
+      "attributedProfit": 4177737,
+      "ownershipPercent": 17,
+      "parenting": "financial"
+    }
+  ]
+}
