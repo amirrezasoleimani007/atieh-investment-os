@@ -867,3 +867,19 @@ body{font-feature-settings:"ss01" 1,"tnum" 1;text-rendering:optimizeLegibility}
 @media(max-width:480px){.access-premium{padding-inline:16px}.access-premium .access-branding>span{font-size:16px}.access-premium .brand-unit{font-size:11px}.access-premium .access-branding h1{font-size:27px}.access-capabilities{gap:8px}.access-capabilities>span{padding:12px 9px}.access-capabilities b{font-size:12px}.access-capabilities small{font-size:10px}.access-premium .access-form{padding:24px}}
 
 .access-release{display:block;font-size:11px;color:#a9c5d1;margin:12px 0 4px}
+
+/* Company parenting strategies — approved management summary mapping. */
+.management-company-heading{display:flex;align-items:center;flex-wrap:wrap;gap:12px 20px}
+.management-company-label{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
+.management-company-label strong{font-size:inherit;font-weight:600;line-height:1.8}
+.management-final-layout nav button{align-items:flex-start}
+.management-final-layout nav button>svg{margin-top:7px}
+.parenting-badge{display:inline-flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border:1px solid #d7e5ee;border-radius:14px;background:#f5f9fc;color:#244e69;line-height:1.7;font-size:.9375rem;font-weight:600;max-width:100%;text-align:right}
+.parenting-badge img{width:52px;height:52px;object-fit:contain;border-radius:10px;background:white;flex-shrink:0}
+.management-exact>header .parenting-badge>span{color:#244e69;font-size:.9375rem}
+.parenting-financial{border-color:#e9d9b1;background:#fffaf0;color:#73591e}
+.management-exact>header .parenting-financial>span{color:#73591e}
+.parenting-compact{font-size:.75rem;gap:6px;padding:3px 7px 3px 3px;border-radius:9px;align-self:flex-start}
+.parenting-compact img{width:30px;height:30px;border-radius:6px}
+.management-final-layout nav button[aria-current] .parenting-badge{border-color:#ffffff50}
+@media(max-width:760px){.management-company-heading{gap:10px}.parenting-badge img{width:42px;height:42px}.management-exact>header .parenting-badge>span{font-size:.8125rem}}
