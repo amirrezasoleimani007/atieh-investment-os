@@ -28,7 +28,7 @@ import IsicAnalysis, {
 import EntryPlanning, {
   type EntryOpportunity,
 } from "@/components/entry-planning";
-import { carryFundingPolicies, reconcileScenarioCases, workspaceId, inspectEntryPlan, reviewSignature, mergeScenarioPlans, eligibleScenarioCases, type SnapshotPlan } from "@/lib/scenario-workspace.mjs";
+import { confirmScenarioStage, carryFundingPolicies, reconcileScenarioCases, workspaceId, inspectEntryPlan, reviewSignature, mergeScenarioPlans, eligibleScenarioCases, type SnapshotPlan } from "@/lib/scenario-workspace.mjs";
 import ScenarioCapitalComparison from "@/components/scenario-capital-comparison";
 import MovementMeetingPrint from "@/components/movement-meeting-print";
 import { archiveScenario, renameScenario, scenarioBackup, validateScenarioBackup, mergeScenarioBackup } from "@/lib/scenario-management.mjs";
@@ -674,7 +674,7 @@ export default function MovementPathV29({
   const freezeScenario = (confirmFinal=false) => {
     if(state.recoveryRequired){setNotice("ابتدا داده معتبر را بازیابی کنید؛ نسخه اصلی بازنویسی نمی‌شود.");return;}
     const checked=inspectEntryPlan(base.baskets,entryOpportunities,"priority");
-    if (!activeScenario || (confirmFinal ? STAGES.slice(0,3).some(step=>!activeScenario.completed.includes(step.id)) : activeScenario.completed.length < 4)) {setNotice("ابتدا مراحل قبلی سناریو را بررسی و تأیید کنید.");return;}
+    if (!activeScenario || (confirmFinal ? STAGES.slice(0,3).some(step=>!activeScenario.completed.includes(step.id)) : activeScenario.completed.length < 4)) {setNotice(`ابتدا این مراحل را بررسی و تأیید کنید: ${STAGES.slice(0,3).filter(step=>!activeScenario?.completed.includes(step.id)).map(step=>step.title).join("، ") || "مراحل قبلی"}`);return;}
     if (checked.errors.length) {setNotice(checked.errors.join(" "));return;}
     const previous=state.snapshots.filter(s=>s.scenarioId===activeScenario.id&&s.revision===activeScenario.revision&&s.dataSnapshot===dataSnapshot&&JSON.stringify(s.plans)===JSON.stringify(checked.plans)&&JSON.stringify(s.policy)===JSON.stringify(base)).at(-1);
     const snapshot:Snapshot=previous??{id:workspaceId(),scenarioId:activeScenario.id,name:activeScenario.name,revision:activeScenario.revision,createdAt:new Date().toISOString(),dataSnapshot,policy:structuredClone(base),plans:checked.plans,coreLens:{method:CORE_CONNECTION_METHOD.version,rows:rows.filter(row=>checked.plans.some(p=>p.parentId===row.id)).map(row=>({id:row.id,name:row.name,coreFit:row.coreFit,verticalTrade:row.verticalTrade,verticalSteel:row.verticalSteel}))}};
@@ -684,6 +684,15 @@ export default function MovementPathV29({
     setState(next);setActiveYear(year);
     setNotice("سناریو منتقل شد؛ طرح‌های منتخب آماده تکمیل نیاز سرمایه‌اند. اطلاعات مالی نسخه پیشین، در صورت وجود، حفظ شده است.");
     onOpenCapital?.();
+  };
+  const confirmAndContinue = () => {
+    if(state.recoveryRequired){setNotice("ابتدا داده معتبر را بازیابی کنید.");return;}
+    if(stage==="mission"&&!stageInputsReady){setNotice(`شرط ورود ${missingConditions.toLocaleString("fa-IR")} حوزه مشروط را تکمیل کنید.`);setMissionFilter("شرط ناقص");setQuery("");return;}
+    if(stage==="entry"){freezeScenario(true);return;}
+    setState(old=>confirmScenarioStage(old,stage) as State);
+    setNotice("");
+    const next=STAGES[STAGES.findIndex(s=>s.id===stage)+1];
+    if(next){setStage(next.id);window.scrollTo({top:0,behavior:"smooth"});}
   };
   const updateBase = (patch: Partial<BaseState>) =>
     setState((old) => ({ ...old, base: { ...old.base, ...patch }, scenarios:old.scenarios.map(s=>s.id===old.activeScenarioId?{...s,completed:s.completed.filter(x=>x!==stage),revision:s.revision+1,updatedAt:new Date().toISOString()}:s) }));
@@ -705,7 +714,7 @@ export default function MovementPathV29({
           const next = { ...(baskets[year] ?? {}) };
           for (const key of Object.keys(next)) {
             const item = entryOpportunities.find((row) => row.key === key);
-            if (item?.parentId === id) {
+            if ((next[key].parentId ?? item?.parentId) === id || key === `parent:${id}`) {
               delete next[key];
               delete cases[`${year}:${key}`];
             }
@@ -953,7 +962,7 @@ export default function MovementPathV29({
                   فرصت مستقل و ثابت باقی می‌ماند.
                 </p>
               </div>
-              <button onClick={() => setStage("isic")}>
+              <button onClick={confirmAndContinue}>
                 ارزیابی تفصیلی <ArrowLeft />
               </button>
             </header>
@@ -1135,8 +1144,8 @@ export default function MovementPathV29({
 
         {stage === "isic" && (
           <IsicAnalysis
-            rows={rows}
-            result={isic as IsicResult}
+            rows={records.filter(row=>passesMissionGate(row.mission,row.condition))}
+            result={{...isic,activities:isic.activities.filter((activity:IsicActivity)=>(activity.parentId==null||records.some(row=>row.id===activity.parentId&&passesMissionGate(row.mission,row.condition))))} as IsicResult}
             baseline={baseline as IsicResult}
             preset={base.isicPreset}
             weights={isicWeights}
@@ -1151,10 +1160,7 @@ export default function MovementPathV29({
                 isicPreset: "custom",
               })
             }
-            onNext={() => {
-              setStage("management");
-              setStage("management");
-            }}
+            onNext={confirmAndContinue}
           />
         )}
 
@@ -1174,7 +1180,7 @@ export default function MovementPathV29({
               <section className="management-priority">
                 <div className="management-toolbar">
                   <div>
-                    <h3>نظر مستقل مدیریت درباره ۷۷ حوزه</h3>
+                    <h3>نظر مستقل مدیریت درباره حوزه‌های واجد مأموریت</h3>
                     <p>
                       «بدون نظر» معادل صفر نیست و از محاسبه اولویت ورود کنار
                       گذاشته می‌شود.
@@ -1214,7 +1220,7 @@ export default function MovementPathV29({
                     <tbody>
                       {records
                         .filter(
-                          (row) => (!query || row.name.includes(query.trim())) && (boardFilter==="همه" || (boardFilter==="بدون نظر" ? base.board[row.id]?.score==null : boardFilter==="اولویت بالا" ? (base.board[row.id]?.score??0)>=4 : base.board[row.id]?.score!=null)),
+                          (row) => passesMissionGate(row.mission,row.condition) && (!query || row.name.includes(query.trim())) && (boardFilter==="همه" || (boardFilter==="بدون نظر" ? base.board[row.id]?.score==null : boardFilter==="اولویت بالا" ? (base.board[row.id]?.score??0)>=4 : base.board[row.id]?.score!=null)),
                         )
                         .sort((a, b) => b.priority - a.priority)
                         .map((row) => {
@@ -1397,7 +1403,7 @@ export default function MovementPathV29({
                       علمی را نمی‌گیرد.
                     </span>
                   </div>
-                  <button onClick={() => setStage("entry")}>
+                  <button onClick={confirmAndContinue}>
                     برنامه‌ریزی ورود <ArrowLeft />
                   </button>
                 </footer>
@@ -1461,7 +1467,7 @@ export default function MovementPathV29({
         )}
 
       </section>
-      <div className="scenario-stage-confirm"><span>{activeScenario.completed.includes(stage) ? "این مرحله تأیید شده است؛ پس از هر اصلاح بازبینی کنید." : "پس از بررسی ورودی‌ها، این مرحله را تأیید کنید."}</span><button onClick={()=>{if(state.recoveryRequired){setNotice("ابتدا داده معتبر را بازیابی کنید.");return;}if(stage==="mission"&&!stageInputsReady){setNotice("شرط ورود حوزه‌های مشروط را تکمیل کنید.");setMissionFilter("شرط ناقص");return;}if(stage==="entry"){freezeScenario(true);return;}setState(old=>({...old,scenarios:old.scenarios.map(s=>s.id===old.activeScenarioId?{...s,completed:[...new Set([...s.completed,stage])],reviewed:{...s.reviewed,[stage]:reviewSignature(old.base,stage)},updatedAt:new Date().toISOString()}:s)})); const next=STAGES[STAGES.findIndex(s=>s.id===stage)+1];if(next)setStage(next.id);}}>{stage === "entry" ? "تأیید و انتقال به تخصیص سرمایه" : "تأیید مرحله و ادامه"} <ArrowLeft/></button></div>
+      <div className="scenario-stage-confirm"><span>{activeScenario.completed.includes(stage) ? "این مرحله تأیید شده است؛ پس از هر اصلاح بازبینی کنید." : "پس از بررسی ورودی‌ها، این مرحله را تأیید کنید."}</span><button onClick={confirmAndContinue}>{stage === "entry" ? "تأیید و انتقال به تخصیص سرمایه" : "تأیید مرحله و ادامه"} <ArrowLeft/></button>{notice&&<p className="stage-action-feedback" role="alert" aria-live="assertive">{notice}</p>}</div>
       </>}
       <footer className="movement-v29-footer">
         <span>

@@ -12,3 +12,4 @@ export function carryFundingPolicies(capital:{sourcePolicies?:Record<string,impo
 export function reconcileScenarioCases<T>(cases: Record<string,T>, snapshots:(PlanSnapshot & {scenarioId?:string})[], selectedIds:string[], choices?:Record<string,string>):Record<string,T>;
 
 export function eligibleScenarioCases<T extends {sourceKind?:string;runKey?:string;opportunityKey:string;continuationOf?:string}>(cases:Record<string,T>,runKey:string,plansByYear:SnapshotPlan[]):Record<string,T>;
+export function confirmScenarioStage<T extends {base:Record<string,unknown>;activeScenarioId:string;scenarios:{id:string;completed:string[];reviewed?:Partial<Record<string,string>>}[]}>(state:T,stage:string):T;
