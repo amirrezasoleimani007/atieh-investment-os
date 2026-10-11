@@ -1,0 +1,9 @@
+"use client";
+import {useState} from 'react';
+import {assessPhasedExecution} from '@/lib/capital-next-step.mjs';
+import type {allocateCapital} from '@/lib/capital-allocation.mjs';
+const fa=(n:number|undefined)=>(n??0).toLocaleString('fa-IR',{maximumFractionDigits:2});
+export default function CapitalNextStep({input,id}:{input:Parameters<typeof allocateCapital>[0];id:string}){
+ const [percent,setPercent]=useState(50);const [trial,setTrial]=useState<ReturnType<typeof assessPhasedExecution>|null>(null);
+ return <section className="capital-next-step"><div><span>آزمایش تصمیم · بدون تغییر برنامه</span><h3>اگر طرح مرحله‌ای اجرا شود چه می‌شود؟</h3><p>حداقل اجرای واقع‌بینانه را وارد کنید؛ تأمین همه طرح‌های همین سال دوباره محاسبه می‌شود. امکان فنی مرحله‌بندی نیازمند بررسی شماست.</p></div><div className="phase-trial-controls"><label>حداقل اجرا از نیاز سال (%)<input aria-label="حداقل اجرای آزمایشی" type="number" min="1" max="100" value={percent} onChange={e=>{setPercent(Number(e.target.value));setTrial(null);}}/></label><button onClick={()=>setTrial(assessPhasedExecution(input,id,percent))}>محاسبه اثر مرحله‌بندی</button></div>{trial&&<div role="status">{trial.status==='invalid'?'درصدی بین ۱ تا ۱۰۰ وارد کنید.':trial.status==='blocked'?'ابتدا ورودی ناقص یا مانع تخصیص را رفع کنید.':<><b>{trial.status==='improved'?'مرحله‌بندی در این محاسبه تأمین طرح را افزایش می‌دهد.':'با این حداقل اجرا، تأمین طرح افزایش پیدا نمی‌کند.'}</b><p>تأمین فعلی: {fa(trial.before)} ← تأمین آزمایشی: {fa(trial.after)} · کسری آزمایشی: {fa(trial.gap)} میلیارد تومان</p>{trial.affected?.length?<><strong>اثر بر سایر طرح‌ها: تأمین موارد زیر کاهش می‌یابد.</strong>{trial.affected.map((p,i)=><p key={i}>{p.name}: از {fa(p.before)} به {fa(p.after)}</p>)}</>:<p>تأمین سایر طرح‌های همین سال کاهش نمی‌یابد.</p>}<small>این نتیجه پیشنهاد بررسی است؛ برای ثبت، قابلیت اجرای مرحله‌ای را در پرونده ویرایش کنید. اثر سال‌های بعد در این آزمایش بررسی نشده است.</small></>}</div>}</section>;
+}

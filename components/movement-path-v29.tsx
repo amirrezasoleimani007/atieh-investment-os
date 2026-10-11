@@ -61,7 +61,7 @@ type Horizon = "core" | "adjacent" | "transform";
 type Stage = "mission" | "isic" | "management" | "entry";
 type Row = {
   id: number;
-  name: string;
+  name: string; projectName?:string; sectorName?:string;
   x: number;
   dynamicY: number;
   priority: number;
@@ -75,7 +75,7 @@ type Row = {
 };
 type ActivityRow = {
   code: string;
-  name: string;
+  name: string; projectName?:string; sectorName?:string;
   parentId: number | null;
   parentName?: string | null;
   mappingEligible?: boolean;
@@ -87,7 +87,7 @@ type ActivityRow = {
   indicators: Record<string, number | null>;
 };
 type CurrentAsset = {
-  name: string;
+  name: string; projectName?:string; sectorName?:string;
   portfolioShare: number | null;
   horizon: string;
   attributableValue?: number | null;
@@ -129,7 +129,7 @@ type CapitalState = {
 type CapitalCase = {
   id: string;
   opportunityKey: string;
-  name: string;
+  name: string; projectName?:string; sectorName?:string;
   parentName: string;
   year: number;
   entryPriority: number;

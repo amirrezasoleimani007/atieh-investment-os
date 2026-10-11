@@ -3,7 +3,7 @@ type SourceAmounts = Record<FundingSource, number>;
 export type CapitalProject = {
   entryMode?:import("./entry-route.mjs").EntryMode;
   id: string;
-  name: string;
+  name: string; projectName?:string; sectorName?:string;
   parentName: string;
   year: number;
   entryPriority: number; entryRank?:number; financialReviewRequired?:boolean;

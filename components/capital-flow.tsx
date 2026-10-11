@@ -16,7 +16,7 @@ export default function CapitalFlow({output,selectedId,onSelect,onEdit,onResourc
  const max=Math.max(.01,...projects.flatMap(r=>visibleSources.map(s=>r.allocations[s.key])));
  const debtLeft=Math.max(0,output.capacity.debtCeiling-output.used.shortDebt-output.used.longDebt-output.reserved.shortDebt-output.reserved.longDebt);
  return <section className="capital-flow-v40">
-  <header className="flow-heading"><div><span><Route/> مسیر تأمین طرح‌ها</span><h3>هر طرح چگونه تأمین شد؟</h3><p>یک طرح را انتخاب کنید؛ مسیر آن از ورود تا نتیجه، مرحله‌به‌مرحله نمایش داده می‌شود.</p></div><div className="flow-total"><b>{fa(output.totalExecuted)}</b><span>میلیارد تومان تخصیص نهایی سبد</span></div></header>
+  <header className="flow-heading"><div><span><Route/> مسیر تأمین طرح‌ها</span><h3>هر طرح چگونه تأمین شد؟</h3><p>یک طرح را انتخاب کنید؛ ترکیب تأمین، دلیل انتخاب منابع و کسری آن را یکجا ببینید.</p></div><div className="flow-total"><b>{fa(output.totalExecuted)}</b><span>میلیارد تومان تخصیص نهایی سبد</span></div></header>
   {!selected?<div className="core-empty">برای این سال پرونده‌ای در دسترس نیست؛ ابتدا نیاز طرح‌ها را ثبت کنید.</div>:<>
    <label className="flow-select"><span>طرح مورد بررسی</span><select value={selected.id} onChange={e=>onSelect(e.target.value)}>{output.results.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
    <CapitalProjectReview key={`${selected.id}:${revisionKey??JSON.stringify(selected)}`} project={selected} onEdit={onEdit?()=>onEdit(selected.id):undefined} onResources={onResources} onPolicy={onPolicy} onDecision={onDecision}/>

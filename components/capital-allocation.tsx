@@ -1,4 +1,5 @@
 "use client";
+import CapitalNextStep from "@/components/capital-next-step";
 import DebtBridge from "@/components/debt-bridge";
 import FundingImprovement from "@/components/funding-improvement";
 import CapitalPreparationSummary from "@/components/capital-preparation-summary";
@@ -36,7 +37,7 @@ import {
   type FundingSource,
 } from "@/lib/capital-allocation.mjs";
 import {evaluationSignature,freezeAllocationEvaluation} from "@/lib/allocation-evaluations.mjs";
-import {workspaceId} from "@/lib/scenario-workspace.mjs";
+import {workspaceId,renameCapitalProject} from "@/lib/scenario-workspace.mjs";
 import type { EntryOpportunity } from "@/components/entry-planning";
 
 type FinancialInput = Record<string, number>;
@@ -51,7 +52,7 @@ type PortfolioAction = {
 type InvestmentCase = {
   id: string;
   opportunityKey: string;
-  name: string;
+  name: string; projectName?:string; sectorName?:string;
   parentName: string;
   year: number;
   entryPriority: number; entryRank?:number;
@@ -81,7 +82,7 @@ type InvestmentCase = {
   overrideAt?: string;
 };
 type PortfolioItem = {
-  name: string;
+  name: string; projectName?:string; sectorName?:string;
   portfolioShare: number | null;
   horizon: string;
   attributableValue?: number | null;
@@ -290,6 +291,7 @@ export default function CapitalAllocation({
       sourceKind:"scenario",
       runKey,
       name: opportunity.name,
+      sectorName: opportunity.name, projectName:"",
       parentName: opportunity.parentName,
       year: activeYear,
       entryPriority: opportunity.entryPriority,
@@ -682,7 +684,7 @@ export default function CapitalAllocation({
                   }
                 >
                   <div>
-                    <b>{opportunity.name}</b>
+                    <b>{state.cases[id]?.name??opportunity.name}</b><small>{opportunity.name}</small>
                     <small>{opportunity.parentName}</small>
                   </div>
                   <span>{fa(opportunity.entryPriority)}</span>
@@ -718,7 +720,8 @@ export default function CapitalAllocation({
                   </button>
                 </header>
                 <div className="case-form-grid">
-                  <h4 className="case-group-heading">شناسه و نیاز مالی طرح</h4>
+                  <h4 className="case-group-heading">شناسنامه و نیاز مالی طرح</h4>
+                  <label className="case-wide project-name-field"><span>نام دقیق طرح</span><input aria-label="نام دقیق طرح" maxLength={160} value={selectedCaseRecord.projectName??(selectedCaseRecord.sourceKind==="independent"?selectedCaseRecord.name:"")} onChange={e=>onState({...state,cases:renameCapitalProject(state.cases,selectedCaseRecord.id,e.target.value)})} placeholder="مثلاً احداث مرکز خدمات فولادی جنوب"/><small>حوزه مبنا: {selectedCaseRecord.sectorName??selectedCaseRecord.parentName} · این نام در اولویت‌ها و نتایج نمایش داده می‌شود و برای سال‌های همین طرح حفظ می‌شود.</small></label>
                   <label>
                     <span>روش ورود</span>
                     <select
@@ -953,6 +956,7 @@ export default function CapitalAllocation({
       {view==="executive"&&<DebtBridge outputs={annualOutputs} terms={state.debtTermsByRun?.[runKey]??{}} financial={state.financialByYear} onTerms={terms=>onState({...state,debtTermsByRun:{...state.debtTermsByRun,[runKey]:terms}})}/>}
       {view==="executive"&&<section className="allocation-evaluation-record"><header><h3>ثبت نسخه تصمیم</h3><p>این ثبت، ارقام سال، پرونده‌ها، ترتیب منابع و نتیجه را ثابت نگه می‌دارد؛ اصلاح بعدی ارزیابی جدید می‌خواهد.</p></header><div className="evaluation-record-form"><label>ثبت‌کننده<input aria-label="ثبت‌کننده ارزیابی" value={approvalActor} onChange={e=>setApprovalActor(e.target.value)}/></label><label>دلیل یا مصوبه<input aria-label="دلیل ثبت ارزیابی" value={approvalReason} onChange={e=>setApprovalReason(e.target.value)}/></label><button onClick={()=>saveEvaluation("draft")}>ثبت پیش‌نویس</button><button onClick={()=>saveEvaluation("approved")}>ثبت ارزیابی تأییدشده</button></div><details><summary>نسخه‌های ثبت‌شده این سال ({fa(evaluations.length,0)})</summary>{evaluations.map(e=><article key={e.id}><b>{e.status==="approved"?"تأییدشده":"پیش‌نویس"}</b><span> · {new Date(e.createdAt).toLocaleString("fa-IR")} · {e.signature===currentSignature?"مطابق ورودی جاری":"ورودی جاری تغییر کرده؛ نسخه ثبت‌شده مستقل است"}</span><p>{e.actor||"ثبت‌کننده تعیین نشده"} · {e.reason||"دلیل تعیین نشده"}</p><p>نیاز: {summarizeCapital(e.output).need==null?"نامشخص":fa(summarizeCapital(e.output).need!,0)} · تأمین: {fa(e.output.totalExecuted,0)} · تعویق: {summarizeCapital(e.output).gap==null?"نامشخص":fa(summarizeCapital(e.output).gap!,0)} میلیارد تومان</p><details><summary>ورودی‌ها و تصمیم‌های همین نسخه</summary><p>نقد پس از پرداخت‌ها: {fa(e.output.financial.cashAfterPayments,0)} · کسری ذخیره: {fa(e.output.financial.reserveShortfall,0)}</p>{e.output.results.map(c=><p key={c.id}>{c.name} · نیاز {c.validation.valid?fa(c.annualNeed,0):"نامشخص"} · تأمین {fa(c.executed,0)} · {c.decision}</p>)}</details></article>)}</details></section>}
       {view === "trace" && <CapitalFlow output={output} selectedId={selectedCase} onSelect={setSelectedCase} onEdit={id=>{setSelectedCase(id);setView("cases");}} onResources={()=>setView("capacity")} onPolicy={()=>setView("policy")} onDecision={()=>setView("executive")} revisionKey={currentSignature}/>}
+      {view==="trace"&&output.results.find(p=>p.id===selectedCase&&p.deferred>0)&&<CapitalNextStep key={currentSignature+selectedCase} id={selectedCase} input={{year:activeYear,financialInput:financial,portfolioActions:actions,projects:blocked?[]:Object.values(state.cases),sourcePolicy}}/>}
       {preparing&&<section className="capital-preparation-check"><div><b>{output.financialValidation.valid&&cases.length>0&&cases.every(c=>output.results.find(r=>r.id===c.id)?.validation.valid)&&!blocked&&!output.reservationConflict&&output.policyValid&&!output.liquidityBlocked?"محاسبه آماده بررسی است":"موارد نیازمند تکمیل یا رفع مانع وجود دارد"}</b><p>{!output.financialValidation.valid?output.financialValidation.errors[0]:blocked?"تعارض سناریو را برطرف کنید.":!cases.length?"ابتدا نیاز طرح‌های سال را ثبت کنید.":output.results.some(r=>!r.validation.valid)?"ورودی‌های ناقص پرونده‌ها را تکمیل کنید.":output.reservationConflict?"رزروها از ظرفیت یا سقف بدهی بیشترند.":!output.policyValid?"مجوزها و اطلاعات سیاست تأمین را تکمیل کنید.":output.liquidityBlocked?"کسری نقدینگی، تخصیص جدید را متوقف کرده است.":financeStatus!=="confirmed"?"نتیجه، پیش‌نمایش است؛ ارقام سال هنوز تأیید نشده‌اند.":"می‌توانید نتیجه و مسیر تأمین هر طرح را مرور کنید."}</p></div><button onClick={()=>setView("dashboard")}>بررسی نتیجه طرح‌ها <ArrowLeft size={17}/></button></section>}
 
     </div>

@@ -122,3 +122,11 @@ test('v48 selection roadmap renders the decision stages and marks legacy evidenc
  const input={baskets:{1406:{'parent:24':{priorityRank:1,entryMode:'direct'}}},opportunities:[opportunity],scenario:{id:'s',revision:1,base:{mission:{24:'مجاز'},focus:{24:'بررسی عمیق'},selectionWeights:{macro:50,detail:30,board:20},vision:{core:60,adjacent:30,transform:10}}}};
  const html=renderToStaticMarkup(React.createElement(SelectionMap,{input,onYear:()=>{}}));assert.match(html,/حدود مأموریت/);assert.match(html,/وضعیت غربال/);assert.match(html,/نظر مدیریت/);assert.match(html,/سرمایه‌گذاری مستقیم/);assert.match(html,/سابقه زمان انتخاب موجود نیست/);assert.doesNotMatch(html,/اصل سررسیدشده/);
 });
+
+test('v56 decision overview shows custom project identity, final metrics and source reasons before collapsed audit',()=>{
+ const output=allocateCapital({year:1406,financialInput:{...DEFAULT_FINANCIAL_INPUT,cashStart:120,longDebtCapacity:80,totalNewDebtCeiling:80,longDebtRate:.25},projects:[{...project,name:'مرکز خدمات جنوب',sectorName:'خدمات بازرگانی',maximumRate:.3}]});
+ const html=renderToStaticMarkup(React.createElement(Flow,{output,onSelect:()=>{}}));
+ assert.match(html,/مرکز خدمات جنوب/);assert.match(html,/خدمات بازرگانی/);assert.match(html,/چرا این ترکیب تأمین/);assert.match(html,/ظرفیت پس از سقف بدهی/);assert.match(html,/نرخ منبع/);
+ assert.match(html,/<details class="funding-audit-details">/);assert.ok(html.indexOf('final-funding-metrics')<html.indexOf('funding-audit-details'));
+ assert.equal(output.totalExecuted,200);assert.equal(output.results[0].allocations.internal,120);assert.equal(output.results[0].allocations.longDebt,80);
+});

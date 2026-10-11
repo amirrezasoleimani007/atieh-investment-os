@@ -13,3 +13,5 @@ export function reconcileScenarioCases<T>(cases: Record<string,T>, snapshots:(Pl
 
 export function eligibleScenarioCases<T extends {sourceKind?:string;runKey?:string;opportunityKey:string;continuationOf?:string}>(cases:Record<string,T>,runKey:string,plansByYear:SnapshotPlan[]):Record<string,T>;
 export function confirmScenarioStage<T extends {base:Record<string,unknown>;activeScenarioId:string;scenarios:{id:string;completed:string[];reviewed?:Partial<Record<string,string>>}[]}>(state:T,stage:string):T;
+
+export function renameCapitalProject<T extends {opportunityKey:string;sourceKind?:string;runKey?:string;name:string}>(cases:Record<string,T>,id:string,name:string):Record<string,T>;
