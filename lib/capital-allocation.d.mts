@@ -99,7 +99,7 @@ export const REQUIRED_FINANCIAL_FIELDS: readonly string[];
 export function computeFinancialCapacity(input?: Record<string, number>): FinancialCapacity;
 export function validateFinancialInput(input?: Record<string, number>): {valid:boolean;complete:boolean;errors:string[]};
 export function reliableDisposalCapacity(actions: { year: number; action: string; status: string; reliableProceeds: number }[], year: number): number;
-export function validateInvestmentCase(project: CapitalProject, allProjects?: CapitalProject[], tolerance?:number): { valid: boolean; errors: string[] };
+export function validateInvestmentCase(project: CapitalProject, allProjects?: CapitalProject[], tolerance?:number, options?:{allowDraft?:boolean}): { valid: boolean; errors: string[] };
 export function allocateCapital(input: {
   year: number;
   financialInput: Record<string, number>;

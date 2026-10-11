@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {defaultMovementState} from '../lib/movement-model.mjs';
 import {archiveScenario,renameScenario,validateScenarioBackup,scenarioBackup,mergeScenarioBackup} from '../lib/scenario-management.mjs';
 import {reconcileScenarioCases,eligibleScenarioCases} from '../lib/scenario-workspace.mjs';
+import {validateInvestmentCase} from '../lib/capital-allocation.mjs';
 const plan={key:'parent:1',parentId:1,name:'حوزه آزمون',parentName:'حوزه اصلی',child:false,macro:70,detail:null,management:4,entryPriority:75,horizon:'adjacent',year:1406,share:0,priorityRank:1};
 function fixture(){
  const base=defaultMovementState();base.baskets[1406]={'parent:1':{share:0,priorityRank:1}};
@@ -11,6 +12,14 @@ function fixture(){
  const cases=reconcileScenarioCases({},snapshots,['s-a']);cases['s-a:1406:parent:1'].annualNeed=120;
  return {version:31,base,scenarios,snapshots,activeScenarioId:'a',selectedSnapshots:['s-a'],conflictChoices:{},capital:{cases,financialByYear:{1406:{partnerCapacity:100}},portfolioActions:{},evaluations:[{id:'approved',status:'approved',input:{projects:[]}}],sourcePolicies:{'s-a':{liquidityMode:'block'}}}};
 }
+test('future-year draft budgets survive restore while remaining ineligible for allocation',()=>{
+ const w=fixture();const c=w.capital.cases['s-a:1406:parent:1'];c.totalNeed=120;
+ const future={...c,id:'s-a:1407:parent:1',year:1407,annualNeed:0};w.capital.cases[future.id]=future;
+ assert.deepEqual(validateScenarioBackup(w),w);
+ assert.equal(validateInvestmentCase(future,Object.values(w.capital.cases)).valid,false);
+ const bad=structuredClone(w);bad.capital.cases[future.id].totalNeed=-1;assert.throws(()=>validateScenarioBackup(bad));
+ const overspent=structuredClone(w);overspent.capital.cases[future.id].annualNeed=1;assert.throws(()=>validateScenarioBackup(overspent));
+});
 test('full backup round trip preserves scenario, financial inputs and frozen decisions',()=>{
  const w=fixture();assert.deepEqual(validateScenarioBackup(JSON.parse(JSON.stringify(w))),w);
 });

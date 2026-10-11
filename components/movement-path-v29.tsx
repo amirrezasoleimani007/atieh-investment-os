@@ -283,7 +283,7 @@ function hydrate(
     const workspace = JSON.parse(localStorage.getItem("ips-scenario-workspace-v31") || "null");
     if (workspace?.version === 31 && Array.isArray(workspace.scenarios) && Array.isArray(workspace.snapshots)) {
       validateScenarioBackup(workspace);
-      return {...workspace, base: migrateEntryRanks(restoreMovementState(workspace.base, rows, activities) as BaseState),
+      return {...workspace, recoveryRequired:false, base: migrateEntryRanks(restoreMovementState(workspace.base, rows, activities) as BaseState),
         scenarios:workspace.scenarios.map((s:Scenario)=>({...s,base:migrateEntryRanks(restoreMovementState(s.base,rows,activities) as BaseState)})),
         capital: {...defaults, ...workspace.capital,liquidityPoliciesByYear:workspace.capital.liquidityPoliciesByYear??{}}, conflictChoices: workspace.conflictChoices ?? {}};
     }
