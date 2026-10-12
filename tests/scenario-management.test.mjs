@@ -18,7 +18,16 @@ test('future-year draft budgets survive restore while remaining ineligible for a
  assert.deepEqual(validateScenarioBackup(w),w);
  assert.equal(validateInvestmentCase(future,Object.values(w.capital.cases)).valid,false);
  const bad=structuredClone(w);bad.capital.cases[future.id].totalNeed=-1;assert.throws(()=>validateScenarioBackup(bad));
- const overspent=structuredClone(w);overspent.capital.cases[future.id].annualNeed=1;assert.throws(()=>validateScenarioBackup(overspent));
+ const overspent=structuredClone(w);overspent.capital.cases[future.id].annualNeed=1;
+ assert.deepEqual(validateScenarioBackup(overspent),overspent);
+ assert.equal(validateInvestmentCase(overspent.capital.cases[future.id],Object.values(overspent.capital.cases)).valid,false);
+});
+test('an exported draft with annual schedules above total restores but remains blocked from allocation',()=>{
+ const w=fixture();const c=w.capital.cases['s-a:1406:parent:1'];c.totalNeed=120;c.annualNeed=120;
+ w.capital.cases['s-a:1407:parent:1']={...c,id:'s-a:1407:parent:1',year:1407,annualNeed:120};
+ assert.deepEqual(validateScenarioBackup(JSON.parse(JSON.stringify(w))),w);
+ assert.equal(validateInvestmentCase(c,Object.values(w.capital.cases)).valid,false);
+ assert.match(validateInvestmentCase(c,Object.values(w.capital.cases)).errors.join(' '),/مجموع نیازهای سالانه/);
 });
 test('full backup round trip preserves scenario, financial inputs and frozen decisions',()=>{
  const w=fixture();assert.deepEqual(validateScenarioBackup(JSON.parse(JSON.stringify(w))),w);

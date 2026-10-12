@@ -63,7 +63,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
       </section>
       <form className="access-form" onSubmit={submit}>
         <header>
-          <span><LockKeyhole /> دسترسی سازمانی</span><small className="access-release">نسخه ۵۶ · شناسنامه طرح و شفافیت تخصیص سرمایه</small>
+          <span><LockKeyhole /> دسترسی سازمانی</span><small className="access-release">نسخه ۵۷ · بازیابی امن پرونده‌های مالی ناتمام</small>
           <h2>ورود به سامانه</h2>
           <p>برای ادامه، رمز دسترسی را وارد کنید.</p>
         </header>
