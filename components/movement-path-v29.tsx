@@ -35,6 +35,7 @@ import { archiveScenario, renameScenario, scenarioBackup, validateScenarioBackup
 import ScenarioControls from "@/components/scenario-controls";
 import CapitalAllocation from "@/components/capital-allocation";
 import MovementRoadmap from "@/components/movement-roadmap";
+import { tradingProximity } from "@/lib/trading-proximity.mjs";
 import TradingProximityRanking from "@/components/trading-proximity-ranking";
 import type {TradeRoute} from "@/lib/trade-development.mjs";
 import { CORE_CONNECTION_METHOD, type CoreRow } from "@/lib/core-connection.mjs";
@@ -158,7 +159,8 @@ type CapitalCase = {
   overrideBy?: string;
   overrideAt?: string;
 };
-type Scenario = { id: string; name: string; base: BaseState; completed: Stage[]; reviewed?: Partial<Record<Stage,string>>; revision: number; updatedAt: string };
+type ReviewCopy={id:string;at:string;name:string;revision:number;resume:{stage:Stage;year:number;roadmap?:boolean};dataSnapshot:string;base:BaseState;report:string};
+type Scenario = { reviewCopies?:ReviewCopy[]; resume?:{stage:Stage;year:number;roadmap?:boolean}; id: string; name: string; base: BaseState; completed: Stage[]; reviewed?: Partial<Record<Stage,string>>; revision: number; updatedAt: string };
 type Snapshot = { id: string; scenarioId: string; name: string; revision: number; createdAt: string; dataSnapshot: string; policy?: BaseState; plans: SnapshotPlan[]; coreLens?:{method:string;rows:CoreRow[]} };
 type State = { lastMovementStage?:Stage; exportedAt?:string;backupScope?:string; archivedScenarioIds?:string[]; compositionMode?:"single"|"combined"; recoveryRequired?:boolean; lastCapitalYear?:number; version: 31; base: BaseState; capital: CapitalState; activeScenarioId: string; scenarios: Scenario[]; snapshots: Snapshot[]; selectedSnapshots: string[]; conflictChoices: Record<string,string> };
 function prepareCapital(state:State):State {
@@ -485,21 +487,24 @@ export default function MovementPathV29({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const loaded=prepareCapital(hydrate(rows, masterData, currentPortfolio));
-      setState({...loaded,lastMovementStage:undefined});
-      if(loaded.lastMovementStage){setEntered(true);rawSetStage(loaded.lastMovementStage);}
+      const resume=loaded.scenarios.find(s=>s.id===loaded.activeScenarioId)?.resume;
+      setState(loaded);setShowRoadmap(resume?.roadmap===true);
+      if(resume || loaded.lastMovementStage){setEntered(true);rawSetStage(resume?.stage??loaded.lastMovementStage??"mission");}
       setCompositionMode(loaded.compositionMode??(loaded.selectedSnapshots.length>1?"combined":"single"));
-      setActiveYear(loaded.lastCapitalYear ?? 1406);
+      setActiveYear(resume?.year ?? loaded.lastCapitalYear ?? 1406);
       setCanUndoRestore(Boolean(localStorage.getItem("ips-workspace-before-restore-v37")));
       setReady(true);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [rows, masterData, currentPortfolio]);
-  useEffect(() => {
+  const draftWorkspace = () => {const saved=serialized(state);return {...saved,lastMovementStage:stage,scenarios:saved.scenarios.map(s=>s.id===saved.activeScenarioId?{...s,resume:{stage,year:activeYear,roadmap:showRoadmap}}:s)};};
+  const saveDraft = () => {
     if (ready && !state.recoveryRequired) {
-      try {localStorage.setItem("ips-scenario-workspace-v31", JSON.stringify(serialized(state)));queueMicrotask(()=>{setSaveStatus("تغییرات در این مرورگر ذخیره شد");setLastSavedAt(new Date().toISOString());});}
+      try {localStorage.setItem("ips-scenario-workspace-v31", JSON.stringify(draftWorkspace()));queueMicrotask(()=>{setSaveStatus("تغییرات در این مرورگر ذخیره شد");setLastSavedAt(new Date().toISOString());});}
       catch {queueMicrotask(()=>{setSaveStatus("ذخیره ناموفق؛ پشتیبان دانلود کنید");setNotice("ذخیره خودکار انجام نشد؛ فضای مرورگر کافی نیست. پیش از خروج، فایل پشتیبان کامل را دانلود کنید.");});}
     }
-  }, [state, ready]);
+  };
+  useEffect(saveDraft, [state, ready, stage, activeYear, showRoadmap]);
 
   const base = state.base;
   const isicWeights = useMemo(
@@ -557,6 +562,7 @@ export default function MovementPathV29({
         map.set(row.parentId, [...(map.get(row.parentId) ?? []), row]);
     return map;
   }, [isic]);
+  const proximity = useMemo(()=>new Map(tradingProximity(rows).map(r=>[r.id,r])),[rows]);
   const entryOpportunities = useMemo<EntryOpportunity[]>(() => {
     const result: EntryOpportunity[] = [];
     for (const row of records) {
@@ -571,6 +577,7 @@ export default function MovementPathV29({
         parentName: "حوزه اصلی",
         parentId: row.id,
         child: false,
+        proximity: proximity.get(row.id)?.score, proximityHint: proximity.get(row.id)?.expansion, proximityReason: proximity.get(row.id)?.reason, market:row.x, strategic:row.dynamicY, mission:row.mission, focus:(base.focus as Record<number,string> | undefined)?.[row.id], missionCondition:[row.condition.key,row.condition.note].filter(Boolean).join("؛ "),
         macro: row.priority,
         detail,
         management,
@@ -591,6 +598,7 @@ export default function MovementPathV29({
           parentName: row.name,
           parentId: row.id,
           child: true,
+          proximity: proximity.get(row.id)?.score, proximityHint: proximity.get(row.id)?.expansion, proximityReason: proximity.get(row.id)?.reason, market:row.x, strategic:row.dynamicY, mission:row.mission, focus:(base.focus as Record<number,string> | undefined)?.[row.id], missionCondition:[row.condition.key,row.condition.note].filter(Boolean).join("؛ "), detailEvidence:child,
           macro: row.priority,
           detail: child.score ?? null,
           management: childManagement,
@@ -660,16 +668,17 @@ export default function MovementPathV29({
     setActiveYear(year);
     setState(old=>prepareCapital({...old,selectedSnapshots:ids,compositionMode,conflictChoices:{},lastCapitalYear:year}));
   };
-  const changeScenario = (id:string) => setState(old => {
-    const all = serialized(old).scenarios;
+  const changeScenario = (id:string) => {
+    const all = draftWorkspace().scenarios;
+    const old=state;
     const next = all.find(s => s.id === id && !(old.archivedScenarioIds??[]).includes(s.id));
-    return next ? {...old, scenarios:all, activeScenarioId:id, base:next.base} : old;
-  });
+    if(next){setState({...old, scenarios:all, activeScenarioId:id, base:next.base});setStage(next.resume?.stage??"mission");setShowRoadmap(next.resume?.roadmap===true);setActiveYear(next.resume?.year??1406);}
+  };
   const createScenario = (name:string, duplicate:boolean) => {
     const clean = name.trim(); if (!clean) return;
     const scenario:Scenario = {id:workspaceId(),name:clean,base:duplicate ? structuredClone(state.base) : restoreMovementState(null,rows,masterData) as BaseState,completed:[],revision:1,updatedAt:new Date().toISOString()};
-    setState(old => ({...old, scenarios:[...serialized(old).scenarios,scenario],activeScenarioId:scenario.id,base:scenario.base}));
-    setStage("mission"); setEntered(true);
+    setState(old => ({...old, scenarios:[...draftWorkspace().scenarios,scenario],activeScenarioId:scenario.id,base:scenario.base}));
+    setStage("mission"); setShowRoadmap(false); setActiveYear(1406); setEntered(true);
   };
   const freezeScenario = (confirmFinal=false) => {
     if(state.recoveryRequired){setNotice("ابتدا داده معتبر را بازیابی کنید؛ نسخه اصلی بازنویسی نمی‌شود.");return;}
@@ -733,7 +742,7 @@ export default function MovementPathV29({
       };
     });
   const downloadBackup = (content:string,name:string) => {
-    const url=URL.createObjectURL(new Blob([content],{type:"application/json"}));
+    const url=URL.createObjectURL(new Blob([content],{type:name.endsWith(".csv")?"text/csv;charset=utf-8":"application/json"}));
     if(exportFile)URL.revokeObjectURL(exportFile.url);
     setExportFile({url,name,content});
     const link=document.createElement("a");link.href=url;link.download=name;
@@ -743,13 +752,40 @@ export default function MovementPathV29({
   };
   const backupStamp = () => new Date().toISOString().replace(/[:.]/g,"-");
   const exportPolicy = () => {
-    const content=state.recoveryRequired ? localStorage.getItem("ips-workspace-recovery-v34")??"null" : JSON.stringify({...serialized(state),exportedAt:new Date().toISOString(),dataSnapshot},null,2);
+    const content=state.recoveryRequired ? localStorage.getItem("ips-workspace-recovery-v34")??"null" : JSON.stringify({...draftWorkspace(),exportedAt:new Date().toISOString(),dataSnapshot},null,2);
     downloadBackup(content,`IPS-پشتیبان-کامل-${backupStamp()}.json`);
   };
   const exportScenario = (id:string) => {
-    const backup=scenarioBackup(serialized(state),id);
+    const backup=scenarioBackup(draftWorkspace(),id);
     const name=backup.scenarios[0].name.replace(/[^\p{L}\p{N} _-]/gu,"_");
     downloadBackup(JSON.stringify({...backup,dataSnapshot},null,2),`IPS-سناریو-${name}-نسخه-${backup.scenarios[0].revision}-${backupStamp()}.json`);
+  };
+  const activeReviewCopies=activeScenario?.reviewCopies??[];
+  const [reviewId,setReviewId]=useState("");
+  const saveReviewCopy=()=>{
+    if(!activeScenario||!ready||state.recoveryRequired)return;
+    const at=new Date().toISOString();
+    const q=(value:unknown)=>{const raw=String(value??"");return '"'+(/^[\s]*[=+@-]/.test(raw)?"'":"")+raw.replaceAll('"','""')+'"';};
+    const report="\uFEFF"+[
+      ["سناریو",activeScenario.name,"بازبینی",activeScenario.revision,"تاریخ ثبت",at,"مرحله",stage,"سال جاری",activeYear,"نسخه داده",dataSnapshot],
+      ["سال","فرصت","حوزه مادر","جذابیت","تناسب","امتیاز حوزه","تفصیلی","نظر مدیریت","اولویت","نزدیکی فولاد","ترتیب مدیریت","سازوکار","قدم اول","شرط پیشروی","جایگزین","هدف","سطح تعهد","دلیل ترتیب مدیریت"],
+      ...Object.entries(base.baskets).flatMap(([year,basket])=>Object.entries(basket).map(([key,item])=>{const o=entryOpportunities.find(x=>x.key===key);const c=item.selectionTrace?.collaboration;return [year,o?.name??key,o?.parentName,o?.market,o?.strategic,o?.macro,o?.detail,o?.management,o?.entryPriority,o?.proximity,item.priorityRank,c?.mechanism,c?.nextStep,c?.condition,c?.alternative,c?.goal,c?.commitment,c?.rankReason];})),
+    ].map(r=>r.map(q).join(",")).join("\r\n");
+    const copy:ReviewCopy={id:workspaceId(),at,name:activeScenario.name,revision:activeScenario.revision,resume:{stage,year:activeYear,roadmap:showRoadmap},dataSnapshot,base:structuredClone(base),report};
+    const current=draftWorkspace();
+    const next={...current,scenarios:current.scenarios.map(x=>x.id===activeScenario.id?{...x,reviewCopies:[...(x.reviewCopies??[]),copy]}:x)};
+    try{localStorage.setItem("ips-scenario-workspace-v31",JSON.stringify(next));setState(next);setReviewId(copy.id);setNotice("نسخه تاریخ‌دار ثبت شد.");}
+    catch{setNotice("نسخه ثبت نشد؛ فایل پشتیبان فضای کاری را دانلود کنید.");}
+  };
+  const review=activeReviewCopies.find(x=>x.id===reviewId)??activeReviewCopies.at(-1);
+  const restoreReviewCopy=()=>{
+    if(!review||state.recoveryRequired)return;
+    const restored=restoreMovementState(review.base,rows,masterData) as BaseState;
+    const draft:Scenario={id:workspaceId(),name:(review.name.slice(0,68)+" · بازبینی "+review.at.slice(0,10)).slice(0,100),base:restored,revision:1,completed:[],updatedAt:new Date().toISOString(),resume:review.resume};
+    const current=draftWorkspace();
+    const next={...current,activeScenarioId:draft.id,base:restored,scenarios:[...current.scenarios,draft]};
+    try{localStorage.setItem("ips-scenario-workspace-v31",JSON.stringify(next));setState(next);setStage(review.resume.stage);setShowRoadmap(review.resume.roadmap===true);setActiveYear(review.resume.year);setNotice("نسخه مستقل باز شد؛ گزارش ثبت‌شده در سناریوی اصلی محفوظ است.");}
+    catch{setNotice("بازکردن نسخه انجام نشد؛ فضای ذخیره‌سازی را بررسی کنید.");}
   };
   const manageArchive = (id:string,removed:boolean) => {
     setState(old=>prepareCapital(archiveScenario(serialized(old),id,removed)));
@@ -776,12 +812,12 @@ export default function MovementPathV29({
   const restoreBackup = () => {
     if(!pendingImport)return;
     try {
-      const previous=serialized(state);
+      const previous=draftWorkspace();
       const next=normalizeImported(importMode==="merge"?mergeScenarioBackup(previous,pendingImport.workspace):pendingImport.workspace);
       // Keep a complete recovery point, including frozen decisions, before replacement.
       localStorage.setItem("ips-workspace-before-restore-v37",JSON.stringify(previous));
       localStorage.setItem("ips-scenario-workspace-v31",JSON.stringify(next));
-      setState(next);setCompositionMode(next.compositionMode??"single");setActiveYear(next.lastCapitalYear??1406);setCanUndoRestore(true);setPendingImport(null);setStage("mission");
+      setState(next);setCompositionMode(next.compositionMode??"single");const resume=next.scenarios.find(s=>s.id===next.activeScenarioId)?.resume;setActiveYear(resume?.year??next.lastCapitalYear??1406);setCanUndoRestore(true);setPendingImport(null);setStage(resume?.stage??next.lastMovementStage??"mission");setShowRoadmap(resume?.roadmap===true);
       setNotice(importMode==="merge"?"سناریوها به‌صورت نسخه مستقل اضافه شدند؛ ارقام مالی و تصمیم‌های جاری تغییر نکردند. برای تخصیص، خروجی بازیابی‌شده را انتخاب کنید.":"فایل کامل بازیابی شد؛ سناریوها، خروجی‌ها و پرونده‌های مالی در دسترس‌اند. بازیابی قبلی نیز قابل بازگردانی است.");
     }catch(error){setNotice(error instanceof Error?error.message:"بازیابی انجام نشد؛ اطلاعات جاری محفوظ است.");}
   };
@@ -790,11 +826,11 @@ export default function MovementPathV29({
       const previous=validateScenarioBackup(JSON.parse(localStorage.getItem("ips-workspace-before-restore-v37")??"null")) as State;
       const next=normalizeImported(previous);
       localStorage.setItem("ips-scenario-workspace-v31",JSON.stringify(next));
-      setState(next);setCompositionMode(next.compositionMode??"single");setActiveYear(next.lastCapitalYear??1406);setCanUndoRestore(false);localStorage.removeItem("ips-workspace-before-restore-v37");setNotice("اطلاعات پیش از آخرین بازیابی بازگردانده شد.");
+      setState(next);setCompositionMode(next.compositionMode??"single");const resume=next.scenarios.find(s=>s.id===next.activeScenarioId)?.resume;setStage(resume?.stage??next.lastMovementStage??"mission");setShowRoadmap(resume?.roadmap===true);setActiveYear(resume?.year??next.lastCapitalYear??1406);setCanUndoRestore(false);localStorage.removeItem("ips-workspace-before-restore-v37");setNotice("اطلاعات پیش از آخرین بازیابی بازگردانده شد.");
     }catch{setNotice("بازگردانی انجام نشد؛ اطلاعات جاری حفظ شده است.");}
   };
   const downloadReady = exportFile && <div className="scenario-download-ready" role="status"><div><b>درخواست دانلود فایل پشتیبان ارسال شد</b><span>{exportFile.name}</span></div><a href={exportFile.url} download={exportFile.name}>دانلود مجدد فایل</a><button onClick={()=>{URL.revokeObjectURL(exportFile.url);setExportFile(null);}}>بستن</button><details><summary>مشاهده محتوای فایل برای کپی دستی</summary><textarea aria-label="محتوای فایل پشتیبان" readOnly value={exportFile.content}/></details></div>;
-  const importDialog = pendingImport && <div className="scenario-restore-overlay"><section ref={restoreDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="scenario-restore-title" className="scenario-restore-panel"><header><Upload/><h2 id="scenario-restore-title">بازیابی سناریوها</h2></header><p>{pendingImport.filename}</p><div className="scenario-import-overview"><b>{pendingImport.workspace.backupScope==="scenario"?"فایل یک سناریو":"پشتیبان کامل"}</b><span>قالب داده سازگار با نسخه ۳۱ · تاریخ خروجی: {pendingImport.workspace.exportedAt?new Date(pendingImport.workspace.exportedAt).toLocaleString("fa-IR",{timeZone:"Asia/Tehran"}):"در فایل ثبت نشده"}</span><span>سناریوها: {pendingImport.workspace.scenarios.map(s=>s.name).join("، ")}</span><span>سال‌های مالی: {Object.keys(pendingImport.workspace.capital.financialByYear).map(y=>Number(y).toLocaleString("fa-IR",{useGrouping:false})).join("، ")||"ثبت نشده"}</span><small>در حالت افزودن، اطلاعات مالی عمومی و تصمیم‌های فعلی جایگزین نمی‌شوند. جایگزینی کامل، همه اطلاعات جاری را تغییر می‌دهد و نقطه بازگشت ایجاد می‌کند.</small></div><div className="scenario-backup-stats"><span><b>{pendingImport.workspace.scenarios.length.toLocaleString("fa-IR")}</b> سناریو</span><span><b>{pendingImport.workspace.snapshots.length.toLocaleString("fa-IR")}</b> خروجی ثبت‌شده</span><span><b>{Object.keys(pendingImport.workspace.capital.cases).length.toLocaleString("fa-IR")}</b> پرونده مالی</span></div><label><input type="radio" name="restoreMode" checked={importMode==="merge"} onChange={()=>setImportMode("merge")}/><span><b>افزودن سناریوها به اطلاعات جاری</b><small>سناریوها و پرونده‌های وابسته با شناسه مستقل اضافه می‌شوند. منابع سالانه، طرح‌های مستقل و تصمیم‌های جاری تغییر نمی‌کنند.</small></span></label><label><input type="radio" name="restoreMode" checked={importMode==="replace"} onChange={()=>setImportMode("replace")}/><span><b>بازیابی کامل و جایگزینی اطلاعات جاری</b><small>همه سناریوها، منابع، پرونده‌ها و تصمیم‌های ثبت‌شده فایل بازیابی می‌شوند. اطلاعات قبل از بازیابی برای بازگردانی نگهداری می‌شود.</small></span></label><footer><button onClick={restoreBackup}>تأیید بازیابی</button><button onClick={()=>setPendingImport(null)}>انصراف</button><button onClick={exportPolicy}>دانلود پشتیبان اطلاعات جاری</button></footer>{notice&&<p role="alert">{notice}</p>}</section></div>;
+  const importDialog = pendingImport && <div className="scenario-restore-overlay"><section ref={restoreDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="scenario-restore-title" className="scenario-restore-panel"><header><Upload/><h2 id="scenario-restore-title">بازیابی سناریوها</h2></header><p>{pendingImport.filename}</p><div className="scenario-import-overview"><b>{pendingImport.workspace.backupScope==="scenario"?"فایل یک سناریو":"پشتیبان کامل"}</b><span>قالب داده سازگار با نسخه ۳۱ · تاریخ خروجی: {pendingImport.workspace.exportedAt?new Date(pendingImport.workspace.exportedAt).toLocaleString("fa-IR",{timeZone:"Asia/Tehran"}):"در فایل ثبت نشده"}</span><span>سناریوها: {pendingImport.workspace.scenarios.map(s=>s.name).join("، ")}</span><span>سال‌های مالی: {Object.keys(pendingImport.workspace.capital.financialByYear).map(y=>Number(y).toLocaleString("fa-IR",{useGrouping:false})).join("، ")||"ثبت نشده"}</span><small>{pendingImport.workspace.scenarios.find(s=>s.id===pendingImport.workspace.activeScenarioId)?.resume&&`مرحله ادامه: ${STAGES.find(x=>x.id===pendingImport.workspace.scenarios.find(s=>s.id===pendingImport.workspace.activeScenarioId)?.resume?.stage)?.title} · سال ${pendingImport.workspace.scenarios.find(s=>s.id===pendingImport.workspace.activeScenarioId)?.resume?.year}`}</small><small>در حالت افزودن، اطلاعات مالی عمومی و تصمیم‌های فعلی جایگزین نمی‌شوند. جایگزینی کامل، همه اطلاعات جاری را تغییر می‌دهد و نقطه بازگشت ایجاد می‌کند.</small></div><div className="scenario-backup-stats"><span><b>{pendingImport.workspace.scenarios.length.toLocaleString("fa-IR")}</b> سناریو</span><span><b>{pendingImport.workspace.snapshots.length.toLocaleString("fa-IR")}</b> خروجی ثبت‌شده</span><span><b>{Object.keys(pendingImport.workspace.capital.cases).length.toLocaleString("fa-IR")}</b> پرونده مالی</span></div><label><input type="radio" name="restoreMode" checked={importMode==="merge"} onChange={()=>setImportMode("merge")}/><span><b>افزودن سناریوها به اطلاعات جاری</b><small>سناریوها و پرونده‌های وابسته با شناسه مستقل اضافه می‌شوند. منابع سالانه، طرح‌های مستقل و تصمیم‌های جاری تغییر نمی‌کنند.</small></span></label><label><input type="radio" name="restoreMode" checked={importMode==="replace"} onChange={()=>setImportMode("replace")}/><span><b>بازیابی کامل و جایگزینی اطلاعات جاری</b><small>همه سناریوها، منابع، پرونده‌ها و تصمیم‌های ثبت‌شده فایل بازیابی می‌شوند. اطلاعات قبل از بازیابی برای بازگردانی نگهداری می‌شود.</small></span></label><footer><button onClick={restoreBackup}>تأیید بازیابی</button><button onClick={()=>setPendingImport(null)}>انصراف</button><button onClick={exportPolicy}>دانلود پشتیبان اطلاعات جاری</button></footer>{notice&&<p role="alert">{notice}</p>}</section></div>;
 
   if(!ready)return <main className="capital-route" dir="rtl"><p role="status">در حال بازیابی سناریوها و پرونده‌های ذخیره‌شده…</p></main>;
 
@@ -895,13 +931,15 @@ export default function MovementPathV29({
       /> </>
     );
 
-  if(showRoadmap&&activeScenario)return <div className="movement-v29" dir="rtl"><header className="movement-v29-heading"><div><span>گام ۰۵ · {activeScenario.name}</span><h1>نقشه مسیر انتخاب‌های چندساله</h1></div><button onClick={()=>setShowRoadmap(false)}>بازگشت به مسیر حرکت</button></header><MovementRoadmap initialYear={activeYear} input={{baskets:base.baskets,opportunities:entryOpportunities,scenario:activeScenario,snapshots:state.snapshots,evaluations:state.capital.evaluations??[],currentRunKey:runKey,currentInputs:roadmapInputs}} onYear={year=>{setActiveYear(year);setStage("entry");setShowRoadmap(false);}}/></div>;
+  const saveBar=<div className="movement-save-bar"><button type="button" onClick={saveDraft}>ذخیره پیش‌نویس</button><button type="button" disabled={!activeScenario || !!state.recoveryRequired} onClick={()=>exportScenario(state.activeScenarioId)}>دانلود سناریوی جاری</button><button type="button" disabled={!activeScenario || !!state.recoveryRequired} onClick={saveReviewCopy}>ثبت نسخه تاریخ‌دار</button><span role="status">{state.recoveryRequired?"ذخیره متوقف؛ نیازمند بازیابی":saveStatus}{lastSavedAt&&" · "+new Date(lastSavedAt).toLocaleTimeString("fa-IR",{timeZone:"Asia/Tehran"})}</span>{review&&<><label>نسخه ثبت‌شده <select value={review.id} onChange={e=>setReviewId(e.target.value)}>{activeReviewCopies.map(r=><option key={r.id} value={r.id}>{r.name} · {new Date(r.at).toLocaleString("fa-IR",{timeZone:"Asia/Tehran"})}</option>)}</select></label><button type="button" onClick={restoreReviewCopy}>بازکردن به‌صورت نسخه مستقل</button><button type="button" onClick={()=>downloadBackup(review.report,`IPS-${review.name.replace(/[^\p{L}\p{N} _-]/gu,"_")}-v${review.revision}-${review.at.replace(/[:.]/g,"-")}.csv`)}>گزارش مدیریتی نسخه</button>{review.dataSnapshot!==dataSnapshot&&<small>داده مرجع تغییر کرده؛ گزارش ثبت‌شده ثابت است. نسخه مستقل با داده جاری محاسبه می‌شود.</small>}</>}</div>;
+  if(showRoadmap&&activeScenario)return <div className="movement-v29" dir="rtl">{downloadReady}{saveBar}<header className="movement-v29-heading"><div><span>گام ۰۵ · {activeScenario.name}</span><h1>نقشه مسیر انتخاب‌های چندساله</h1></div><button onClick={()=>setShowRoadmap(false)}>بازگشت به مسیر حرکت</button></header><MovementRoadmap initialYear={activeYear} input={{baskets:base.baskets,opportunities:entryOpportunities,scenario:activeScenario,snapshots:state.snapshots,evaluations:state.capital.evaluations??[],currentRunKey:runKey,currentInputs:roadmapInputs}} onYear={year=>{setActiveYear(year);setStage("entry");setShowRoadmap(false);}}/></div>;
   return (
     <main className="movement-v29" dir="rtl">
       {downloadReady}
       {importDialog}
       {canUndoRestore&&<button className="scenario-undo" onClick={undoRestore}>بازگردانی اطلاعات پیش از آخرین بازیابی</button>}
       {state.recoveryRequired&&<div className="capital-blocked" role="alert">داده ذخیره‌شده نیازمند بازیابی است؛ نسخه اصلی حفظ شده و ذخیره خودکار متوقف است. از «ورود فایل» برای بازیابی نسخه معتبر استفاده کنید.</div>}
+      {saveBar}
       <ScenarioControls saveStatus={state.recoveryRequired?"ذخیره متوقف؛ نیازمند بازیابی":saveStatus} lastSavedAt={lastSavedAt} lastBackupAt={lastBackupAt} archivedIds={state.archivedScenarioIds??[]} onArchive={manageArchive} onRename={(id,name)=>{const next=renameScenario(serialized(state),id,name);setState(next);}} onExport={exportScenario} onBackup={exportPolicy} onImport={()=>fileRef.current?.click()} onOpenCapital={openScenarioCapital} scenarios={serialized(state).scenarios} activeId={state.activeScenarioId} onSelect={changeScenario} onCreate={createScenario} onFreeze={()=>setStage("entry")} snapshots={state.snapshots} />
       {!activeScenario ? <div className="scenario-required"><h2>ابتدا نام سناریو را ثبت کنید</h2><p>هر تصمیم و برنامه ورود به همین سناریو تعلق خواهد داشت.</p></div> : <>
       <div className="decision-context"><div><b>{activeScenario.name}</b><span>نسخه {fa(activeScenario.revision,0)} · {STAGES.find(s=>s.id===stage)?.title}</span></div><span className={activeScenario.completed.includes(stage)?"confirmed":"pending"}>{activeScenario.completed.includes(stage)?"تأیید شده":stageInputsReady?"ورودی آماده؛ نیازمند تأیید":"ورودی نیازمند تکمیل"}</span><span>{fa(activeScenario.completed.length,0)} از ۴ مرحله تأیید شده</span></div>
@@ -1420,13 +1458,13 @@ export default function MovementPathV29({
                   updateBase({ selectionWeights })
                 }
                 plan={plan}
-                onAdd={(item,entryMode) =>
+                onAdd={(item,entryMode,collaboration) =>
                   updateBase({
                     baskets: {
                       ...base.baskets,
                       [activeYear]: {
                         ...plan,
-                        [item.key]: { entryMode,selectionTrace:captureSelectionTrace(item,{...base,customWeights:isicWeights},records.find(r=>r.id===item.parentId),activeYear,dataSnapshot),share: 0, priorityRank:Math.max(0,...Object.values(plan).map(v=>v.priorityRank??0))+1, parentId: item.parentId },
+                        [item.key]: { ...plan[item.key],entryMode,selectionTrace:{...(plan[item.key]?.selectionTrace??captureSelectionTrace(item,{...base,customWeights:isicWeights},records.find(r=>r.id===item.parentId),activeYear,dataSnapshot)),collaboration},share: plan[item.key]?.share??0, priorityRank:plan[item.key]?.priorityRank??Math.max(0,...Object.values(plan).map(v=>v.priorityRank??0))+1, parentId: item.parentId },
                       },
                     },
                   })

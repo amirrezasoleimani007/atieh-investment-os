@@ -1,5 +1,6 @@
 "use client";
-import {ENTRY_MODES,type EntryMode,type SelectionTrace} from "@/lib/entry-route.mjs";
+import {zoneFor,MATRIX_THRESHOLDS} from "@/lib/movement-zones.mjs";
+import {ENTRY_MODES,type EntryMode,type SelectionTrace,type Collaboration} from "@/lib/entry-route.mjs";
 
 import {
   ChevronDown,
@@ -10,9 +11,10 @@ import {
   X,
 } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
-import { HORIZONS, YEARS, selectionScore } from "@/lib/movement-model.mjs";
+import { HORIZONS, YEARS, ISIC_INDICATORS, selectionScore } from "@/lib/movement-model.mjs";
 
 export type EntryOpportunity = {
+  proximity?:number|null; proximityHint?:string; proximityReason?:string; market?:number; strategic?:number; mission?:string; missionCondition?:string; focus?:string; detailEvidence?:{ indicators:Record<string,number|null>;percentiles:Record<string,number>|null;normalizedWeights:Record<string,number>|null;contributions:Record<string,number>|null;dataPeriod?:{start:number|null;end:number|null} };
   entryMode?:EntryMode; selectionTrace?:SelectionTrace;
   key: string;
   name: string;
@@ -58,12 +60,15 @@ export default function EntryPlanning({
   weights: Weights;
   onWeights: (weights: Weights) => void;
   plan: Record<string, PlanItem>;
-  onAdd: (item: EntryOpportunity,mode:EntryMode) => void;
+  onAdd: (item: EntryOpportunity,mode:EntryMode|undefined,collaboration?:Collaboration) => void;
   onMode:(key:string,mode:EntryMode)=>void;
   onRemove: (key: string) => void;
   onRank: (key: string, rank: number) => void;
 }) {
   const [pending,setPending]=useState<EntryOpportunity|null>(null);
+  const [route,setRoute]=useState<Collaboration>({goal:"",mechanism:"",commitment:"",nextStep:"",condition:"",alternative:""});
+  const [order,setOrder]=useState("priority");
+  const show=(item:EntryOpportunity)=>{setRoute(plan[item.key]?.selectionTrace?.collaboration??{goal:"",mechanism:"",commitment:"",nextStep:"",condition:"",alternative:""});setPending(item);};
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [showWeights, setShowWeights] = useState(false);
@@ -77,9 +82,9 @@ export default function EntryPlanning({
     [opportunities, query],
   );
   const parents = visible
-    .filter((item) => !item.child)
+    .filter((item) => !item.child || !visible.some(p=>!p.child&&p.parentId===item.parentId))
     .sort(
-      (a, b) => b.entryPriority - a.entryPriority || a.parentId - b.parentId,
+      (a, b) => (order==="proximity"?(b.proximity??-1)-(a.proximity??-1):b.entryPriority - a.entryPriority) || a.parentId - b.parentId,
     );
   const childrenByParent = useMemo(() => {
     const result = new Map<number, EntryOpportunity[]>();
@@ -118,10 +123,33 @@ export default function EntryPlanning({
               item.parentId,
         );
 
-  const evidence=(item:EntryOpportunity)=>selectionScore(item.macro,item.detail,item.management,weights).components.map(c=>`${({macro:"کلان",detail:"تفصیلی",board:"مدیریت"} as Record<string,string>)[c.key]} ${fa(c.effectiveWeight)}٪`).join(" · ");
+  const scoreRange=(item:EntryOpportunity)=>{
+    const values=[selectionScore(item.macro,item.detail,item.management,weights).score??item.entryPriority];
+    const keys=["macro","detail","board"] as const;
+    for(const from of keys)for(const to of keys)if(from!==to&&weights[from]>=5){
+      const adjusted={...weights,[from]:weights[from]-5,[to]:weights[to]+5};
+      const v=selectionScore(item.macro,item.detail,item.management,adjusted).score;
+      if(v!=null)values.push(v);
+    }
+    return [Math.min(...values),Math.max(...values)];
+  };
+  const evidence=(item:EntryOpportunity)=>selectionScore(item.macro,item.detail,item.management,weights).components.map(c=>`${({macro:"حوزه مادر",detail:"تفصیلی",board:"مدیریت"} as Record<string,string>)[c.key]} ${fa(c.effectiveWeight)}٪`).join(" · ");
   return (
     <div className="entry-planning-workspace">
-      {pending&&<div className="entry-route-overlay"><section role="dialog" aria-modal="true" aria-labelledby="entry-route-title" className="entry-route-choice" onKeyDown={e=>{if(e.key==='Escape'){setPending(null);e.stopPropagation();}if(e.key==='Tab'){const buttons=Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button'));const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}><header><div><span>انتخاب مسیر ورود · سال {activeYear.toLocaleString('fa-IR',{useGrouping:false})}</span><h3 id="entry-route-title">{pending.name}</h3></div><button autoFocus onClick={()=>setPending(null)} aria-label="بستن انتخاب مسیر">×</button></header><p>این فرصت را از چه مسیری به برنامه اضافه می‌کنید؟</p><div>{Object.entries(ENTRY_MODES).map(([key,mode])=><button key={key} data-mode={key} onClick={()=>{onAdd(pending,key as EntryMode);setPending(null);}}><span>{key==='trade'?'تجارت و شبکه مشتری':'دارایی و عملیات'}</span><b>{mode.label}</b><p>{mode.description}</p><small>{mode.target}</small></button>)}</div></section></div>}
+      {pending&&<div className="entry-route-overlay"><section role="dialog" aria-modal="true" aria-labelledby="entry-route-title" className="entry-route-choice movement-decision-card" onKeyDown={e=>{if(e.key==="Escape")setPending(null);if(e.key==="Tab"){const controls=Array.from(e.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled),select,input,summary"));const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
+      <header><div><span>کارت تصمیم فرصت</span><h3 id="entry-route-title">{pending.name}</h3></div><button autoFocus onClick={()=>setPending(null)} aria-label="بستن">×</button></header>
+      <p>{pending.mission}{pending.missionCondition&&" · شرط: "+pending.missionCondition} · {pending.focus??"بدون نظر تمرکز"} · {pending.child?"مختصات حوزه مادر: "+pending.parentName:"مختصات حوزه"} · نزدیکی به بازرگانی فولاد {fa(pending.proximity)} از ۱۰۰</p>
+      {pending.market!=null&&pending.strategic!=null&&<div className="movement-mini-matrix"><svg viewBox="0 0 140 100" width="140" height="100" role="img" aria-label="نقطه روی ماتریس فرصت"><rect x="0" y="0" width="140" height="100" fill="#e9f0f8"/>{[MATRIX_THRESHOLDS.medium,MATRIX_THRESHOLDS.high].map(t=><path key={t} d={`M${5+(t-.5)/9*130} 0V100M0 ${95-(t-.5)/9*90}H140`} stroke="#91a8c2"/>)}<circle cx={5+(pending.market-.5)/9*130} cy={95-(pending.strategic-.5)/9*90} r="5" fill="#0b559f"/></svg><div>جذابیت: {fa(pending.market)} · تناسب: {fa(pending.strategic)}<br/>خانه: {zoneFor(pending.market,pending.strategic).title}<br/>{zoneFor(pending.market,pending.strategic).decision}</div></div>}
+      <details open><summary>چرا اولویت ورود {fa(pending.entryPriority)} است؟</summary>
+      {selectionScore(pending.macro,pending.detail,pending.management,weights).components.map(c=><div key={c.key} className="movement-score-factor"><span>{({macro:"حوزه",detail:"تفصیلی",board:"مدیریت"} as Record<string,string>)[c.key]} · وزن مؤثر {fa(c.effectiveWeight)}٪</span><meter min="0" max="100" value={c.value*c.effectiveWeight/100}/><b>{fa(c.value*c.effectiveWeight/100)}</b></div>)}
+      <small>دامنه امتیاز با جابه‌جایی ۵ واحد درصد وزن: {scoreRange(pending).map(v=>fa(v)).join(" تا ")}</small><br/><small>{pending.detail==null?"داده تفصیلی موجود نیست. ":""}{pending.management==null?"نظر مدیریت ثبت نشده است.":""}</small></details>
+      {pending.detailEvidence&&<details><summary>منشأ امتیاز تفصیلی · دوره {fa(pending.detailEvidence.dataPeriod?.start,0)} تا {fa(pending.detailEvidence.dataPeriod?.end,0)}</summary>{ISIC_INDICATORS.map(x=>{const d=pending.detailEvidence!;return <div className="movement-score-factor" key={x.key}><span title={x.source}>{x.label} · مقدار خام {fa(d.indicators[x.key],2)} · صدک {fa(d.percentiles?.[x.key])} · وزن {fa(d.normalizedWeights?.[x.key])}٪</span><meter min="0" max="100" value={d.contributions?.[x.key]??0}/><b>{fa(d.contributions?.[x.key],2)}</b></div>})}</details>}
+      <details><summary>مسیر همکاری پیشنهادی (اختیاری)</summary><p>نوع همکاری را بر اساس شواهد ثبت کنید. اگر شواهد کافی نیست، فقط اقدام بررسی را بنویسید.</p>{pending.proximityHint&&<p><b>سرنخ مدل ارتباط با هسته{pending.child?" (حوزه مادر)":""}:</b> {pending.proximityHint} · {pending.proximityReason}</p>}<div className="movement-route-fields">
+      <label>هدف<select value={route.goal} onChange={e=>setRoute({...route,goal:e.target.value})}><option value="">تعیین نشده</option>{["توسعه تأمین و فروش","خدمات یا فرآوری","توسعه ظرفیت صنعتی"].map(x=><option key={x}>{x}</option>)}</select></label>
+      <label>سازوکار<select value={route.mechanism} onChange={e=>setRoute({...route,mechanism:e.target.value})}><option value="">تعیین نشده</option>{["قرارداد تجاری","استفاده از ظرفیت شریک","مشارکت صنعتی","خرید سهم","توسعه مستقل"].map(x=><option key={x}>{x}</option>)}</select></label>
+      <label>سطح تعهد<select value={route.commitment} onChange={e=>setRoute({...route,commitment:e.target.value})}><option value="">تعیین نشده</option>{["بررسی و مذاکره","آزمون محدود","اجرای مرحله‌ای","تعهد پس از تصویب"].map(x=><option key={x}>{x}</option>)}</select></label>
+      {([["nextStep","قدم اول"],["condition","شرط پیشروی"],["alternative","مسیر جایگزین"],["rankReason","دلیل ترتیب مدیریت"]] as const).map(([k,label])=><label key={k}>{label}<input maxLength={300} value={route[k]??""} onChange={e=>setRoute({...route,[k]:e.target.value})}/></label>)}</div></details>
+      <footer><button onClick={()=>{onAdd(pending,plan[pending.key]?.entryMode,route);setPending(null);}}>{plan[pending.key]?"ثبت تغییرات کارت":"افزودن برای بررسی"}</button><button onClick={()=>setPending(null)}>بستن</button></footer></section></div>}
       <header className="entry-planning-head">
         <div>
           <span>گام چهارم · برنامه ورود</span>
@@ -225,23 +253,21 @@ export default function EntryPlanning({
             />
           </label>
         </header>
+        <label>مرتب‌سازی <select value={order} onChange={e=>setOrder(e.target.value)}><option value="priority">اولویت ورود</option><option value="proximity">نزدیکی به بازرگانی فولاد</option></select></label>
         <div className="movement-table-wrap">
           <table className="movement-table entry-table">
             <thead>
               <tr>
                 <th>فرصت</th>
-                <th>حوزه مادر</th>
-                <th>امتیاز حوزه</th>
-                <th>تفصیلی</th>
-                <th>مدیریت</th>
+                <th>نزدیکی به بازرگانی فولاد</th>
                 <th>اولویت ورود</th>
-                <th>جایگاه</th>
+                <th>وضعیت بررسی</th>
                 <th>اقدام</th>
               </tr>
             </thead>
             <tbody>
               {parents.map((parent) => {
-                const children = childrenByParent.get(parent.parentId) ?? [];
+                const children = parent.child ? [] : childrenByParent.get(parent.parentId) ?? [];
                 const open = expanded.has(parent.parentId);
                 return (
                   <Fragment key={parent.key}>
@@ -276,12 +302,7 @@ export default function EntryPlanning({
                           </div>
                         </div>
                       </td>
-                      <td>
-                        <span className="parent-badge">حوزه اصلی</span>
-                      </td>
-                      <td>{fa(parent.macro)}</td>
-                      <td>{fa(parent.detail)}</td>
-                      <td>{parent.management==null?"بدون نظر":fa(parent.management,0)}</td>
+                      <td>{fa(parent.proximity)}{parent.child&&<small> · حوزه مادر</small>}</td>
                       <td>
                         <strong className="entry-score">
                           {fa(parent.entryPriority)}<details className="effective-weight-note"><summary>وزن‌های مؤثر</summary><small>{evidence(parent)}</small></details>
@@ -289,25 +310,23 @@ export default function EntryPlanning({
                       </td>
                       <td>
                         <span className={`horizon-tag ${parent.horizon}`}>
-                          {horizonLabel(parent.horizon)}
+                          {parent.focus??horizonLabel(parent.horizon)}
                         </span>
                       </td>
                       <td>
                         <button
                           className="entry-add"
                           disabled={
-                            Object.hasOwn(plan, parent.key) ||
                             selectedParentConflict(parent) ||
                             Math.abs(normalizedTotal - 100) >= 0.01
                           }
-                          onClick={() => setPending(parent)}
+                          onClick={() => show(parent)}
                         >
                           {Object.hasOwn(plan, parent.key) ? (
-                            "در برنامه"
+                            "مشاهده انتخاب"
                           ) : (
                             <>
-                              <Plus /> افزودن به برنامه ورود{" "}
-                              {activeYear.toLocaleString("fa-IR", {useGrouping:false})}
+                              <Plus /> بررسی فرصت
                             </>
                           )}
                         </button>
@@ -320,37 +339,29 @@ export default function EntryPlanning({
                             <span className="entry-branch" />
                             <b>{child.name}</b>
                           </td>
-                          <td>
-                            <span className="parent-badge">
-                              {child.parentName}
-                            </span>
-                          </td>
-                          <td>{fa(child.macro)}</td>
-                          <td>{fa(child.detail)}</td>
-                          <td>{child.management==null?"بدون نظر":fa(child.management,0)}</td>
+                          <td>{fa(child.proximity)} <small>· حوزه مادر</small></td>
                           <td>
                             <strong>{fa(child.entryPriority)}</strong><details className="effective-weight-note"><summary>وزن‌های مؤثر</summary><small>{evidence(child)}</small></details>
                           </td>
                           <td>
                             <span className={`horizon-tag ${child.horizon}`}>
-                              {horizonLabel(child.horizon)}
+                              {child.focus??horizonLabel(child.horizon)}
                             </span>
                           </td>
                           <td>
                             <button
                               className="entry-add"
                               disabled={
-                                Object.hasOwn(plan, child.key) ||
                                 selectedParentConflict(child) ||
                                 Math.abs(normalizedTotal - 100) >= 0.01
                               }
-                              onClick={() => setPending(child)}
+                              onClick={() => show(child)}
                             >
                               {Object.hasOwn(plan, child.key) ? (
-                                "در برنامه"
+                                "مشاهده انتخاب"
                               ) : (
                                 <>
-                                  <Plus /> افزودن
+                                  <Plus /> بررسی
                                 </>
                               )}
                             </button>
@@ -396,7 +407,7 @@ export default function EntryPlanning({
                       <td>
                         <b>{row.item.name}</b>
                       </td>
-                      <td>{row.item.parentName}</td><td><label className="entry-mode-tag" data-mode={row.entryMode??'unknown'}><select aria-label={`مسیر ورود ${row.item.name}`} value={row.entryMode??''} onChange={e=>onMode(row.key,e.target.value as EntryMode)}><option value="" disabled>مسیر تعیین نشده</option>{Object.entries(ENTRY_MODES).map(([key,m])=><option key={key} value={key}>{m.label}</option>)}</select><small>{row.entryMode?ENTRY_MODES[row.entryMode].target:'انتخاب مسیر لازم است'}</small></label></td>
+                      <td>{row.item.parentName}</td><td><label className="entry-mode-tag" data-mode={row.entryMode??'unknown'}><select aria-label={`مسیر ورود ${row.item.name}`} value={row.entryMode??''} onChange={e=>onMode(row.key,e.target.value as EntryMode)}><option value="" disabled>مسیر تعیین نشده</option>{Object.entries(ENTRY_MODES).map(([key,m])=><option key={key} value={key}>{m.label}</option>)}</select><small>{row.entryMode?ENTRY_MODES[row.entryMode].target:'در دست بررسی'}</small></label></td>
                       <td>
                         <span className={`horizon-tag ${row.item.horizon}`}>
                           {horizonLabel(row.item.horizon)}
@@ -407,8 +418,8 @@ export default function EntryPlanning({
                       </td>
                       <td>
                         <label className="allocation-input">
-                          <input type="number" min="1" step="1" aria-label={`رتبه ورود ${row.item.name}`} value={row.priorityRank??""} onChange={event=>onRank(row.key,Math.max(1,Math.round(Number(event.target.value)||1)))}/><span>رتبه</span>
-                        </label>
+                          <input type="number" min="1" step="1" aria-label={`رتبه ورود ${row.item.name}`} value={row.priorityRank??""} onChange={event=>onRank(row.key,Math.max(1,Math.round(Number(event.target.value)||1)))}/><span>ترتیب مدیریت</span>
+                        </label>{row.selectionTrace?.collaboration?.rankReason&&<small>{row.selectionTrace.collaboration.rankReason}</small>}
                       </td>
                       <td>
                         <button

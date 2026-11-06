@@ -80,3 +80,26 @@ test('v46 debt terms survive scenario backup and remap to imported run IDs',()=>
  let n=0;const merged=mergeScenarioBackup(fixture(),backup,()=>`debt-${++n}`);assert.deepEqual(merged.capital.debtTermsByRun['debt-2'],w.capital.debtTermsByRun['s-a']);
  const invalid=structuredClone(w);invalid.capital.debtTermsByRun['s-a']['1406:shortDebt'].grace=3;assert.throws(()=>validateScenarioBackup(invalid));
 });
+
+test('v58 unfinished scenario export and independent import preserve resume, frozen report and selection evidence',()=>{
+ const w=fixture(),s=w.scenarios[0];
+ s.completed=['mission'];s.resume={stage:'entry',year:1408};
+ const trace={version:1,chosenAt:'2026-11-06T09:00:00Z',dataSnapshot:'ref-old',year:1408,parentId:1,child:false,gates:{mission:'مجاز'},scores:{macro:70,detail:null,management:4,priority:75,proximity:62},weights:{macro:50,detail:30,board:20},collaboration:{goal:'توسعه تأمین و فروش',mechanism:'قرارداد تجاری',commitment:'آزمون محدود',nextStep:'بررسی سفارش',condition:'تأیید تقاضا',alternative:'',rankReason:'قرارداد قابل آزمون'}};
+ s.base.baskets[1408]={'parent:1':{share:0,priorityRank:1,selectionTrace:trace}};
+ w.base=structuredClone(s.base);
+ s.reviewCopies=[{id:'rv1',at:trace.chosenAt,name:s.name,revision:1,resume:s.resume,dataSnapshot:'ref-old',base:structuredClone(s.base),report:'مقدار ثبت‌شده،۷۵'}];
+ const file=validateScenarioBackup(JSON.parse(JSON.stringify(scenarioBackup(w,'a'))));
+ const current=fixture();let nextId=0;
+ const merged=mergeScenarioBackup(current,file,()=>`v58-import-${++nextId}`);
+ const incoming=validateScenarioBackup(merged).scenarios.find(x=>x.id===merged.activeScenarioId);
+ assert.deepEqual(incoming.resume,{stage:'entry',year:1408});
+ assert.deepEqual(incoming.base.baskets[1408]['parent:1'].selectionTrace,trace);
+ assert.deepEqual(incoming.reviewCopies,s.reviewCopies);
+ assert.deepEqual(merged.capital.evaluations,current.capital.evaluations);
+ incoming.base.baskets[1408]['parent:1'].priorityRank=2;
+ assert.equal(incoming.reviewCopies[0].base.baskets[1408]['parent:1'].priorityRank,1);
+ const bad=structuredClone(file);bad.scenarios[0].resume.year=1500;
+ assert.throws(()=>validateScenarioBackup(bad),/سال ادامه/);
+ const damaged=structuredClone(file);damaged.scenarios[0].reviewCopies[0].report=null;
+ assert.throws(()=>validateScenarioBackup(damaged),/نسخه تاریخ‌دار/);
+});

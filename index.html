@@ -1,16 +1,13 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#071827" />
-    <meta name="description" content="سامانه هوشمند خط‌مشی سرمایه‌گذاری آتیه فولاد" />
-    <link rel="icon" href="/atieh-investment-os/atieh-logo.png" />
-    <title>سامانه هوشمند خط‌مشی سرمایه‌گذاری | آتیه فولاد</title>
-    <script type="module" crossorigin src="/atieh-investment-os/assets/index-Cs91OAj0.js"></script>
-    <link rel="stylesheet" crossorigin href="/atieh-investment-os/assets/index-BQVde2dY.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="atieh-release" content="58"><link rel="icon" href="./atieh-logo.png"><title>سامانه خط‌مشی سرمایه‌گذاری آتیه فولاد | نسخه ۵۸</title></head>
+<body><div id="root" role="status">در حال بارگذاری نسخه ۵۸…</div><script type="module">
+const root=document.querySelector("#root");
+try {
+ const response=await fetch(new URL("./assets/ips-v58.pack",location.href));
+ if(!response.ok||!response.body)throw Error("download");
+ const data=await new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).json();
+ const css=document.createElement("style");css.textContent=data.css;document.head.append(css);
+ const url=URL.createObjectURL(new Blob([data.js],{type:"text/javascript"}));
+ try{await import(url);}finally{URL.revokeObjectURL(url);}
+} catch(error) { console.error(error);root.textContent="بارگذاری سامانه انجام نشد. صفحه را دوباره بارگذاری کنید."; }
+</script></body></html>

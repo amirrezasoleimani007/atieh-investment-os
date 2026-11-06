@@ -565,7 +565,7 @@ export default function IsicAnalysis({
             </div>
             <details className="isic-score-method">
               <summary>
-                کنترل محاسبه و جمع سهم شاخص‌ها <ChevronLeft />
+                نمودار سهم شاخص‌ها در امتیاز تفصیلی <ChevronLeft />
               </summary>
               <div>
                 {ISIC_INDICATORS.map((item) => (
@@ -574,6 +574,7 @@ export default function IsicAnalysis({
                     <small>
                       وزن مؤثر {fa(detail.normalizedWeights?.[item.key], 1)}٪
                     </small>
+                    <meter aria-label={item.label} min={0} max={Math.max(1,...Object.values(detail.contributions??{}))} value={detail.contributions?.[item.key]??0}/>
                     <b>سهم {fa(detail.contributions?.[item.key], 2)}</b>
                   </p>
                 ))}
