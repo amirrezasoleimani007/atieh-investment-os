@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
-import { ArrowLeft, Building2, Compass, ChartNoAxesCombined, Target, ShieldCheck } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Building2, Compass, ChartNoAxesCombined, Target, ShieldCheck, X, Search, Network } from "lucide-react";
 import marketData from "@/public/data/company-market-narratives.json";
 import management from "@/public/data/management-narratives.json";
+import summaries from "@/public/data/management-summary.json";
 
 export type MarketKey = keyof typeof marketData.marketCompanies;
 const fa = (n:number) => n.toLocaleString("fa-IR");
@@ -23,18 +23,37 @@ export function CompanyMarketNarrative({ id, onBack }: { id:string; onBack:()=>v
 }
 
 
-const financialCompanies = ["صنایع برش ورق فولادی مبارکه", "توکا رنگ فولاد سپاهان", "کارگزاری مبین سرمایه", "ورق خودرو چهارمحال بختیاری", "صندوق پژوهش و فناوری مواد پیشرفته و انرژی"];
-const strategicCompanies = ["فولاد متیل", "آتیه صنعت افق نقش جهان", "پولای بهیز", "آتیه تجارت نقش جهان قشم", "نورد لوله کوثر صنعت اسپادانا"];
-const normalizeCompany = (name:string) => name.replace(/^(شرکت|هلدینگ)\s+/, "").replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/چهارمحال و بختیاری/g,"چهارمحال بختیاری").replace(/\s+/g," ").trim();
-export function ParentingBadge({name, compact=false}:{name:string;compact?:boolean}) {
- const key=normalizeCompany(name);
- const mode=financialCompanies.includes(key)?"financial":strategicCompanies.includes(key)?"strategic":null;
- if(!mode) return null;
- return <span className={`parenting-badge parenting-${mode}${compact?" parenting-compact":""}`}><Image src={`/parenting/${mode}.webp`} width={60} height={60} alt="" unoptimized /><span>سرپرستی با کنترل {mode==="financial"?"مالی":"راهبردی"}</span></span>;
-}
+const normalizeCompany = (name:string) => name.replace(/^(شرکت|هلدینگ)\s+/, "").replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/[\s\u200c]+/g," ").trim();
+const columns=["شرکت یا پروژه","جایگاه در پرتفوی","نقش در سبد","جمع‌بندی راهبردی و اقدام اولویت‌دار","انتظار آتیه","هم‌افزایی درون‌گروهی"];
 
 export default function ManagementNarratives() {
-  const [selected,setSelected]=useState(0);
-  const company=management.companies[selected];
-  return <section className="management-final"><header className="management-final-head"><div><span className="overline">خروجی نهایی روایت امروز</span><h2>جمع‌بندی مدیریتی</h2></div><label>شرکت موردنظر<select value={selected} onChange={e=>setSelected(Number(e.target.value))}>{management.companies.map((c,i)=><option value={i} key={c.name}>{c.name} — {financialCompanies.includes(normalizeCompany(c.name))?"کنترل مالی":"کنترل راهبردی"}</option>)}</select></label></header><div className="management-final-layout"><nav aria-label="انتخاب شرکت برای جمع‌بندی">{management.companies.map((c,i)=><button key={c.name} aria-current={selected===i?"true":undefined} onClick={()=>setSelected(i)}><span>{fa(i+1).padStart(2,"۰")}</span><div className="management-company-label"><strong>{c.name}</strong><ParentingBadge name={c.name} compact /></div><ArrowLeft size={16}/></button>)}</nav><article className="management-exact" key={selected}><header><ShieldCheck size={30}/><div><div className="management-company-heading"><span>{company.name}</span><ParentingBadge name={company.name}/></div><h3>{company.title}</h3></div></header><div className="management-prose">{company.paragraphs.map((text,i)=><section key={i}><span className="management-paragraph-index">{fa(i+1).padStart(2,"۰")}</span><p>{text}</p></section>)}</div><footer><span>{fa(selected+1)} از {fa(management.companies.length)} شرکت</span><button disabled={selected===management.companies.length-1} onClick={()=>setSelected(selected+1)}>شرکت بعدی <ArrowLeft size={17}/></button></footer></article></div></section>;
+  const [query,setQuery]=useState("");
+  const [selected,setSelected]=useState<typeof summaries[number] | null>(null);
+  const dialog=useRef<HTMLDialogElement>(null);
+  const opener=useRef<HTMLButtonElement>(null);
+  const visible=summaries.filter(r=>!query.trim()||normalizeCompany(r.name).includes(normalizeCompany(query)));
+  const legacy=selected&&management.companies.find(c=>normalizeCompany(c.name)===normalizeCompany(selected.name));
+  return <section className="panel ips59-management">
+    <div className="ips59-banner"><div className="ips59-banner-icon"><ShieldCheck size={26}/></div><div><span>روایت امروز / خروجی مدیریتی</span><h2>نمای راهبردی شرکت‌ها و پروژه‌ها</h2><p>نقش هر سرمایه‌گذاری، اقدام اولویت‌دار، انتظار آتیه و فرصت همکاری درون گروه</p></div><aside><b>{fa(summaries.length)}</b><small>شرکت و پروژه</small></aside></div>
+    <div className="ips59-management-tools"><label><Search size={17}/><input value={query} placeholder="جست‌وجوی نام شرکت یا پروژه" aria-label="جست‌وجوی شرکت در جمع‌بندی" onChange={e=>setQuery(e.target.value)}/></label><p>برای مطالعه جمع‌بندی تفصیلی روی نام شرکت بزنید.</p><span aria-live="polite">{fa(visible.length)} مورد</span></div>
+    <div className="ips59-table-scroll" tabIndex={0} role="region" aria-label="جدول جمع‌بندی مدیریتی"><table className="ips59-table ips59-management-table">
+      <thead><tr>{columns.map(h=><th key={h} scope="col">{h}</th>)}</tr></thead>
+      <tbody>{visible.map((r,i)=><tr key={r.name} style={{"--row":i} as React.CSSProperties}>
+        <th scope="row"><button type="button" className="ips59-company-link" onClick={e=>{opener.current=e.currentTarget;setSelected(r);dialog.current?.showModal();}}>{r.name}<ArrowLeft size={16}/></button></th>
+        <td data-label={columns[1]}><div className="ips59-position"><strong>{r.activity}</strong><div><span className="ips59-tag" data-tone="blue">{r.segment}</span><span className="ips59-tag" data-tone={r.control==="کنترلی"?"teal":"neutral"}>{r.control}</span><span className="ips59-tag" data-tone={r.stewardship==="سرپرستی مالی"?"gold":"neutral"}>{r.stewardship}</span></div></div></td>
+        <td data-label={columns[2]}>{r.role}</td>
+        <td data-label={columns[3]}><ul className="ips59-actions">{r.actions.map(a=><li key={a}>{a}</li>)}</ul></td>
+        <td data-label={columns[4]}><div className="ips59-expectation">{r.expectation}</div></td>
+        <td data-label={columns[5]}>{r.synergies.length?<div className="ips59-synergies">{r.synergies.map(s=><span key={s}><Network size={13}/>{s}</span>)}</div>:"—"}</td>
+      </tr>)}</tbody>
+    </table>{!visible.length&&<p className="ips59-empty">شرکت یا پروژه‌ای با این نام پیدا نشد.</p>}</div>
+    <dialog className="ips59-management-dialog" ref={dialog} aria-labelledby="ips59-detail-title" onClose={()=>{setSelected(null);opener.current?.focus();}}>
+      <header><div><span>جمع‌بندی تفصیلی</span><h2 id="ips59-detail-title">{selected?.name}</h2></div><button type="button" autoFocus onClick={()=>dialog.current?.close()} aria-label="بستن جمع‌بندی تفصیلی"><X size={23}/></button></header>
+      {selected&&<div className="ips59-dialog-body" key={selected.name}>
+        {selected.name.startsWith("نورد لوله کوثر")&&<aside className="ips59-current-decision"><b>آخرین جهت‌گیری ثبت‌شده در جدول</b><span>{selected.actions[0]}. {selected.actions[1]}.</span><small>روایت تفصیلی زیر، متن نسخه پیشین را حفظ می‌کند.</small></aside>}
+        <h3>{legacy?.title??selected.role}</h3>
+        {(legacy?.paragraphs??[...selected.actions,selected.expectation]).map((paragraph,i)=><section key={i}><span>{fa(i+1).padStart(2,"۰")}</span><p>{paragraph}</p></section>)}
+      </div>}
+    </dialog>
+  </section>;
 }

@@ -1,0 +1,15 @@
+import type { FinancialCompany } from '../components/investment-os';
+export type RegisterRow = {index:number;name:string;financialName:string;direct:number;group:number;nature:string;control:string;segment:string;stewardship:string};
+type Register = {rows:RegisterRow[]; financialAdditions:Record<string,NonNullable<FinancialCompany['kpiHistory']>>};
+export type PortfolioRow = RegisterRow & {amount:number|null};
+export type Composition = {label:string;value:number;count:number;available:number};
+export type ScatterPeriod = {year:number;x:number|null;y:number|null;cell:number|null};
+export type PerformancePeriod = {year:number;score:number|null;rank:number|null;peers:number};
+export function extendPortfolioFinancials<T extends FinancialCompany>(companies:T[],register:Register):FinancialCompany[];
+export function portfolioPeriod(rows:RegisterRow[], financials:FinancialCompany[], year:number, metric:'equity'|'profit', scope:'all'|'direct'|'group'):PortfolioRow[];
+export function aggregateComposition(rows:PortfolioRow[], key:'nature'|'control'|'segment'|'stewardship'):Composition[];
+export function scatterCell(x:number,y:number):number;
+export function scatterHistory(company:FinancialCompany|undefined,years:number[],xKey:string,yKey:string):ScatterPeriod[];
+export function rankPerformance<T extends FinancialCompany>(companies:T[],weights:Record<string,number>):Array<T & {dynamicScore:number|null;dynamicRank:number|null}>;
+export function performanceHistory(companies:FinancialCompany[],name:string,years:number[],weights:Record<string,number>):PerformancePeriod[];
+export function consecutivePairs<T extends {year:number}>(points:T[], usable:(p:T)=>boolean):[T,T][];

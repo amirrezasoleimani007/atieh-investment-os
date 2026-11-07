@@ -7,6 +7,10 @@ import Image from "next/image";
 import MarketIndustries from "@/components/market-industries";
 import ManagementNarratives from "@/components/company-narratives";
 import PortfolioOverview from "@/components/portfolio-overview";
+import { PerformanceTrend, ScatterJourney, ScatterJourneyPeriods, ScatterZones } from "@/components/performance-charts";
+import register from "@/public/data/portfolio-register.json";
+import { extendPortfolioFinancials, performanceHistory, rankPerformance, scatterHistory, type ScatterPeriod } from "@/lib/today-portfolio.mjs";
+import "@/app/today-portfolio.css";
 import MovementPath from "@/components/movement-path-v29";
 import {
   MOVEMENT_BASELINE,
@@ -65,7 +69,7 @@ type KpiPoint = {
   unit: string;
   label: string;
 };
-type FinancialCompany = {
+export type FinancialCompany = {
   name: string;
   scope: string;
   nature: string;
@@ -212,7 +216,7 @@ const TODAY_STEPS = [
   },
   {
     id: 2 as const,
-    title: "وضعیت مالی",
+    title: "تحلیل و ارزیابی عملکرد پرتفوی",
     question: "شرکت‌ها چگونه عمل می‌کنند؟",
     icon: Activity,
   },
@@ -532,62 +536,6 @@ function matrixCell(financial: number, market: number) {
   const fb = financial >= 6.67 ? 0 : financial >= 3.34 ? 1 : 2;
   return mb * 3 + fb + 1;
 }
-type DonutSegment = { label: string; value: number; color: string };
-function SegmentedDonut({
-  title,
-  note,
-  segments,
-  centerLabel,
-}: {
-  title: string;
-  note: string;
-  segments: DonutSegment[];
-  centerLabel?: string;
-}) {
-  const total = segments.reduce((sum, item) => sum + item.value, 0) || 1;
-  const gradient = segments
-    .map((item, index) => {
-      const start =
-        (segments
-          .slice(0, index)
-          .reduce((sum, segment) => sum + segment.value, 0) /
-          total) *
-        100;
-      const end = start + (item.value / total) * 100;
-      return `${item.color} ${start}% ${end}%`;
-    })
-    .join(",");
-  const lead = [...segments].sort((a, b) => b.value - a.value)[0];
-  return (
-    <article className="composition-card">
-      <div className="composition-head">
-        <span>{title}</span>
-        <small>{note}</small>
-      </div>
-      <div className="composition-body">
-        <div
-          className="segmented-donut"
-          style={{ background: `conic-gradient(${gradient})` }}
-        >
-          <div>
-            <strong>{centerLabel ?? pct(lead.value / total, 1)}</strong>
-            <small>{lead.label}</small>
-          </div>
-        </div>
-        <div className="composition-legend">
-          {segments.map((item) => (
-            <div key={item.label}>
-              <i style={{ background: item.color }} />
-              <span>{item.label}</span>
-              <b>{pct(item.value / total, 1)}</b>
-            </div>
-          ))}
-        </div>
-      </div>
-    </article>
-  );
-}
-
 function Header({
   onHome,
   onNavigate,
@@ -859,20 +807,20 @@ function StepFrame({
   );
 }
 
-function PortfolioView({ portfolio }: { portfolio: PortfolioItem[] }) {
-  return <PortfolioOverview portfolio={portfolio} Donut={SegmentedDonut}/>;
-}
-
 function ScatterChart({
   rows,
   selected,
   onSelect,
   definition,
+  journey,
+  replay,
 }: {
   rows: FinancialCompany[];
   selected?: string;
   onSelect: (name: string) => void;
   definition: (typeof SCATTER_DEFS)[number];
+  journey: ScatterPeriod[] | null;
+  replay: string;
 }) {
   return (
     <article className="scatter-card">
@@ -886,10 +834,10 @@ function ScatterChart({
       <div className="scatter-wrap compact-scatter">
         <div className="axis-label y-label">{definition.yLabel} · کم ← زیاد</div>
         <div className="scatter-plot">
-          <div className="scatter-grid" />
+          <ScatterZones />
           <div className="scatter-y-scale" aria-label="محور عمودی: صفر کم تا ده زیاد"><span>۱۰ · زیاد</span><span>۵</span><span>۰ · کم</span></div>
           <div className="scatter-x-scale" aria-label="محور افقی: صفر کم تا ده زیاد"><span>۰ · کم</span><span>۵</span><span>۱۰ · زیاد</span></div>
-          {rows.map((c, index) => {
+          {journey ? <ScatterJourney key={replay} points={journey}/> : rows.map((c, index) => {
             const x = c.scatterAxes?.[definition.x],
               y = c.scatterAxes?.[definition.y];
             if (x == null || y == null) return null;
@@ -915,6 +863,7 @@ function ScatterChart({
         </div>
         <div className="axis-label x-label">{definition.xLabel} · از صفر تا ده</div>
       </div>
+      {journey&&<ScatterJourneyPeriods points={journey}/>}
     </article>
   );
 }
@@ -926,20 +875,6 @@ function policyBand(value: number | null | undefined) {
       : value >= 3.33
         ? "متوسط"
         : "ضعیف";
-}
-function scoreWithWeights(
-  c: FinancialCompany,
-  weights: Record<string, number>,
-) {
-  const valid = RANK_METRICS.filter((m) => c.dimensions[m.key]?.score != null);
-  const total = valid.reduce((s, m) => s + weights[m.key], 0);
-  return total
-    ? valid.reduce(
-        (s, m) =>
-          s + ((c.dimensions[m.key].score ?? 0) * weights[m.key]) / total,
-        0,
-      )
-    : null;
 }
 function redistribute(
   weights: Record<string, number>,
@@ -958,7 +893,7 @@ function redistribute(
 function FinancialRadar({ company }: { company: FinancialCompany }) {
   const entries = RANK_METRICS.map((metric) => ({
     label: metric.label,
-    value: company.dimensions[metric.key]?.score ?? 0,
+    value: company.dimensions[metric.key]?.score ?? null,
   }));
   const center = 150,
     radius = 104;
@@ -984,16 +919,16 @@ function FinancialRadar({ company }: { company: FinancialCompany }) {
           const [x, y] = point(10, i).split(",");
           return <line key={i} x1={center} y1={center} x2={x} y2={y} />;
         })}
-        <polygon
+        {entries.every(e=>e.value!==null)&&<polygon
           className="financial-radar-area"
-          points={entries.map((entry, i) => point(entry.value, i)).join(" ")}
-        />
+          points={entries.map((entry, i) => point(entry.value!, i)).join(" ")}
+        />}
         {entries.map((entry, i) => {
           const [x, y] = point(10, i, 24).split(",");
-          const [cx, cy] = point(entry.value, i).split(",");
+          const [cx, cy] = point(entry.value ?? 0, i).split(",");
           return (
             <g key={entry.label}>
-              <circle cx={cx} cy={cy} r="4" />
+              {entry.value!==null&&<circle cx={cx} cy={cy} r="4" />}
               <text x={x} y={y} textAnchor="middle">
                 {entry.label}
               </text>
@@ -1082,6 +1017,8 @@ function FinancialView({
   const [scope, setScope] = useState("گروه آتیه"),
     [view, setView] = useState<FinanceView>("scatter");
   const [selectedYear,setSelectedYear]=useState(1404);
+  const [scatterMode,setScatterMode]=useState<"all"|"single">("all");
+  const [replay,setReplay]=useState(0);
   const scopeCompanies=useMemo(()=>financialCompanies.filter(c=>c.scope===scope),[financialCompanies,scope]);
   const years=useMemo(()=>financialYears(scopeCompanies),[scopeCompanies]);
   const activeYear=years.includes(selectedYear)?selectedYear:years[0];
@@ -1095,13 +1032,10 @@ function FinancialView({
     Object.fromEntries(RANK_METRICS.map((m) => [m.key, m.base])),
   );
   const [scenario, setScenario] = useState("balanced");
-  const ranking = useMemo(
-    () =>
-      scoped
-        .map((c) => ({ ...c, dynamicScore: scoreWithWeights(c, weights) }))
-        .sort((a, b) => (b.dynamicScore ?? -1) - (a.dynamicScore ?? -1)),
-    [scoped, weights],
-  );
+  const ranking = useMemo(()=>rankPerformance(scoped,weights),[scoped,weights]);
+  const selectedSource=scopeCompanies.find(c=>c.name===selected?.name);
+  const trend=useMemo(()=>selected?performanceHistory(scopeCompanies,selected.name,years,weights):[],[scopeCompanies,selected?.name,years,weights]);
+  const journeyYears=years.filter(year=>year<=activeYear);
   const availableKpiCodes = selected
     ? Object.keys(selected.kpiHistory ?? {})
         .filter((code) => selected.kpiHistory?.[code]?.length)
@@ -1164,11 +1098,23 @@ function FinancialView({
               <div>
                 <h2>دیده‌بان مالی؛ چهار منظر عملکرد</h2>
                 <p>
-                  داده سال {activeYear?.toLocaleString("fa-IR",{useGrouping:false})} برای {scope}؛ انتخاب هر نقطه،
-                  سیاست شرکت را به‌روزرسانی می‌کند
+                  {scatterMode==="single"
+                    ? `مسیر سالانه ${selected?.name ?? ""} تا سال ${activeYear?.toLocaleString("fa-IR",{useGrouping:false})}؛ دوره‌های بدون داده به هم وصل نمی‌شوند.`
+                    : `نمای ${scope} در سال ${activeYear?.toLocaleString("fa-IR",{useGrouping:false})}؛ هر نقطه یک شرکت است.`}
                 </p>
               </div>
             </div>
+            <div className="ips59-watch-toolbar">
+              <div className="ips59-toggle" role="group" aria-label="حالت نمایش دیده‌بان">
+                <button type="button" aria-pressed={scatterMode==="all"} onClick={()=>setScatterMode("all")}>کل پرتفوی</button>
+                <button type="button" aria-pressed={scatterMode==="single"} onClick={()=>setScatterMode("single")}>مسیر تک‌شرکت</button>
+              </div>
+              <label>شرکت<select aria-label="شرکت دیده‌بان" value={selected?.name??""} onChange={e=>setSelectedName(e.target.value)}>
+                {scopeCompanies.map(c=><option key={c.name}>{c.name}</option>)}
+              </select></label>
+              {scatterMode==="single"&&<button className="ips59-replay" type="button" onClick={()=>setReplay(r=>r+1)}>بازپخش مسیر</button>}
+            </div>
+            <div className="ips59-zone-key"><span>خانه ۱ · هر دو محور ضعیف</span><span>خانه ۵ · هر دو محور متوسط</span><span>خانه ۹ · هر دو محور قوی</span></div>
             <div className="scatter-grid-cards">
               {SCATTER_DEFS.map((def) => (
                 <ScatterChart
@@ -1177,6 +1123,8 @@ function FinancialView({
                   selected={selected?.name}
                   onSelect={setSelectedName}
                   definition={def}
+                  journey={scatterMode==="single"?scatterHistory(selectedSource,journeyYears,def.x,def.y):null}
+                  replay={`${selected?.name}-${activeYear}-${replay}`}
                 />
               ))}
             </div>
@@ -1320,7 +1268,7 @@ function FinancialView({
               </div>
             </div>
             <div className="ranking-list">
-              {ranking.map((c, index) => (
+              {ranking.map((c) => (
                 <button
                   key={c.name}
                   className={
@@ -1329,7 +1277,7 @@ function FinancialView({
                   onClick={() => setSelectedName(c.name)}
                 >
                   <span className="rank-no">
-                    {(index + 1).toLocaleString("fa-IR")}
+                    {c.dynamicRank?.toLocaleString("fa-IR") ?? "—"}
                   </span>
                   <div>
                     <b>{c.name}</b>
@@ -1346,6 +1294,7 @@ function FinancialView({
             </div>
           </section>
           {selected && (
+            <>
             <section className="ranking-analysis-grid">
               <article className="panel financial-radar-card">
                 <div className="section-title">
@@ -1391,17 +1340,16 @@ function FinancialView({
                       </tr>
                     </thead>
                     <tbody>
-                      {ranking.map((company, index) => (
+                      {ranking.map((company) => (
                         <tr
                           key={company.name}
                           className={
                             company.name === selected.name ? "active" : ""
                           }
-                          onClick={() => setSelectedName(company.name)}
                         >
-                          <td>{(index + 1).toLocaleString("fa-IR")}</td>
+                          <td>{company.dynamicRank?.toLocaleString("fa-IR") ?? "—"}</td>
                           <td>
-                            <b>{company.name}</b>
+                            <button type="button" className="ips59-rank-select" aria-pressed={selected.name===company.name} onClick={()=>setSelectedName(company.name)}>{company.name}</button>
                           </td>
                           {RANK_METRICS.map((metric) => (
                             <td key={metric.key}>
@@ -1422,6 +1370,8 @@ function FinancialView({
                 </div>
               </article>
             </section>
+            <PerformanceTrend name={selected.name} periods={trend} year={activeYear}/>
+            </>
           )}
         </>
       )}
@@ -2038,14 +1988,13 @@ function McKinseyView({ companies }: { companies: Company[] }) {
 function Today({
   companies,
   financialCompanies,
-  portfolio,
 }: {
   companies: Company[];
   financialCompanies: FinancialCompany[];
-  portfolio: PortfolioItem[];
 }) {
   const [intro, setIntro] = useState(true),
     [step, setStep] = useState<TodayStep>(1);
+  const financials = useMemo(()=>extendPortfolioFinancials(financialCompanies,register),[financialCompanies]);
   const open = (s: TodayStep) => {
     setStep(s);
     setIntro(false);
@@ -2059,8 +2008,8 @@ function Today({
     );
   return (
     <StepFrame step={step} onStep={open}>
-      {step === 1 && <PortfolioView portfolio={portfolio} />}{" "}
-      {step === 2 && <FinancialView financialCompanies={financialCompanies} />}{" "}
+      {step === 1 && <PortfolioOverview financialCompanies={financials} />}{" "}
+      {step === 2 && <FinancialView financialCompanies={financials} />}{" "}
       {step === 3 && <MarketView />}{" "}
       {step === 4 && <SwotView companies={companies} />}{" "}
       {step === 5 && <McKinseyView companies={companies} />}{" "}
@@ -3524,7 +3473,6 @@ export default function InvestmentOS({
         <Today
           companies={companies}
           financialCompanies={financialCompanies}
-          portfolio={portfolio}
         />
       )}{" "}
       {path === "growth" && (
