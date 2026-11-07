@@ -13,3 +13,5 @@ export function scatterHistory(company:FinancialCompany|undefined,years:number[]
 export function rankPerformance<T extends FinancialCompany>(companies:T[],weights:Record<string,number>):Array<T & {dynamicScore:number|null;dynamicRank:number|null}>;
 export function performanceHistory(companies:FinancialCompany[],name:string,years:number[],weights:Record<string,number>):PerformancePeriod[];
 export function consecutivePairs<T extends {year:number}>(points:T[], usable:(p:T)=>boolean):[T,T][];
+export type DimensionBenchmark = Record<string,{score:number|null;count:number}>;
+export function averageDimensionScores(companies:FinancialCompany[],keys:readonly string[]):DimensionBenchmark;

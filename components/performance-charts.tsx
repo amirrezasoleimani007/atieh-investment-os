@@ -14,23 +14,37 @@ export function ScatterZones(){
 }
 
 export function ScatterJourney({points}:{points:ScatterPeriod[]}){
-  const arrow=useId();
   const observed=points.filter(p=>p.cell!==null);
-  const pairs=consecutivePairs(points,p=>p.cell!==null);
+  const segments=consecutivePairs(points,p=>p.cell!==null).filter(([a,b])=>a.x!==b.x||a.y!==b.y);
   const latest=observed.at(-1);
   return <>
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="ips59-scatter-route" aria-hidden="true">
-      <defs><marker id={arrow} markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto" viewBox="0 0 5 5"><path d="M0 0L5 2.5L0 5Z" fill="#125a81"/></marker></defs>
-      {pairs.map(([a,b],i)=><line className="ips59-route-segment" key={b.year} x1={a.x!*10} x2={b.x!*10} y1={100-a.y!*10} y2={100-b.y!*10} pathLength="1" vectorEffect="non-scaling-stroke" markerEnd={`url(#${arrow})`} style={{"--route-i":i} as CSSProperties}/>)}
-      {pairs.map(([a,b],i)=>a.x===b.x&&a.y===b.y?null:<circle key={a.year} className="ips59-motion-tracer" r="1.35" fill="#107b70" opacity="0"><animateMotion begin={`${i*.095}s`} dur=".38s" path={`M${a.x!*10},${100-a.y!*10} L${b.x!*10},${100-b.y!*10}`}/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.15;.85;1" dur=".38s" begin={`${i*.095}s`}/></circle>)}
+      {segments.map(([a,b],i)=>{
+        const d=`M ${a.x!*10} ${100-a.y!*10} L ${b.x!*10} ${100-b.y!*10}`;
+        return <g className="ips60-route-leg" key={b.year} style={{"--route-i":i} as CSSProperties}>
+          <path className="ips60-route-halo" d={d} vectorEffect="non-scaling-stroke"/>
+          <path className="ips60-route-dash" d={d} vectorEffect="non-scaling-stroke"/>
+        </g>;
+      })}
     </svg>
-    {observed.map((p,i)=><button type="button" key={p.year} className={`ips59-route-point ${p===latest?"latest":""}`} aria-label={`سال ${financialYearLabel(p.year)}؛ خانه ${fa(p.cell!)}؛ محور افقی ${faScore(p.x)}؛ محور عمودی ${faScore(p.y)}`} title={`${financialYearLabel(p.year)} · خانه ${fa(p.cell!)} | ${faScore(p.x)}، ${faScore(p.y)}`} style={{left:`${p.x!*10}%`,bottom:`${p.y!*10}%`,"--route-i":i} as CSSProperties}><span>{financialYearLabel(p.year)}</span></button>)}
+    {observed.map((p,i)=><button type="button" key={p.year}
+      className={`ips59-route-point ${p===latest?"latest":""}`}
+      data-edge={p.x!<1.4?"left":p.x!>8.6?"right":"middle"} data-high={p.y!>8.5}
+      aria-label={`${p===latest?"آخرین مشاهده؛ ":""}سال ${financialYearLabel(p.year)}؛ خانه ${fa(p.cell!)}؛ محور افقی ${faScore(p.x)}؛ محور عمودی ${faScore(p.y)}`}
+      title={`${financialYearLabel(p.year)} · خانه ${fa(p.cell!)} | ${faScore(p.x)}، ${faScore(p.y)}`}
+      style={{left:`${p.x!*10}%`,bottom:`${p.y!*10}%`,"--route-i":i} as CSSProperties}>
+      <span>{financialYearLabel(p.year)}</span>
+    </button>)}
     {!latest&&<div className="ips59-empty-scatter">داده کافی برای این دو محور وجود ندارد.</div>}
   </>;
 }
 
 export function ScatterJourneyPeriods({points}:{points:ScatterPeriod[]}){
-  return <div className="ips59-route-years" aria-label="وضعیت هر سال">{points.map(p=><span key={p.year} data-missing={p.cell===null}><b>{financialYearLabel(p.year)}</b>{p.cell===null?"فاقد داده":`خانه ${fa(p.cell)}`}</span>)}</div>;
+  const latest=points.filter(p=>p.cell!==null).at(-1);
+  return <div className="ips60-route-caption">
+    <div className="ips60-route-key"><span><i/>مسیر سالانه</span><span><i/>آخرین مشاهده{latest? ` · ${financialYearLabel(latest.year)}`:""}</span></div>
+    <div className="ips59-route-years" aria-label="وضعیت هر سال">{points.map(p=><span key={p.year} data-missing={p.cell===null} data-latest={p===latest}><b>{financialYearLabel(p.year)}</b>{p.cell===null?"فاقد داده":`خانه ${fa(p.cell)}`}</span>)}</div>
+  </div>;
 }
 
 export function PerformanceTrend({name,periods,year}:{name:string;periods:PerformancePeriod[];year:number}){

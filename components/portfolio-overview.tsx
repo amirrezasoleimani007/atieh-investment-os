@@ -9,7 +9,7 @@ import type { FinancialCompany } from "./investment-os";
 const fa = (n:number, digits=0) => n.toLocaleString("fa-IR",{maximumFractionDigits:digits});
 const yearLabel = (n:number) => n.toLocaleString("fa-IR",{useGrouping:false});
 const amount = (n:number) => Math.abs(n) < 100_000 && n !== 0
-  ? `${fa(n / 10_000, 3)} میلیارد تومان`
+  ? `${fa(n / 10_000, 3)} میلیارد`
   : `${fa(n / 10_000_000, 3)} همت`;
 const lenses = [
   {key:"nature",title:"ترکیب بر مبنای ماهیت",icon:Building2,colors:["#256d93","#378e80","#b7843e"]},
@@ -31,7 +31,7 @@ function CompositionCard({title, Icon, segments, colors, periodKey}:{title:strin
         {segments.map((s,i)=><div key={s.label} title={`${s.label}: ${s.available?amount(s.value):"فاقد داده"}`}><i style={{background:s.value<0?"#ba6259":colors[i],width:`${Math.abs(s.value)/absMax*48}%`,left:s.value<0?`${50-Math.abs(s.value)/absMax*48}%`:"50%"}}/></div>)}
       </div> : <><svg viewBox="0 0 160 160" aria-hidden="true"><circle cx="80" cy="80" r="63" stroke="#e7eff3" strokeWidth="15" fill="none"/>
         {segments.map((s,i)=>{const fraction=net>0?s.value/net*100:0; const start=offset;offset+=fraction;return fraction>0&&<circle key={s.label} cx="80" cy="80" r="63" pathLength="100" fill="none" stroke={colors[i]} strokeWidth="15" strokeDasharray={`${Math.max(.02,fraction-(segments.filter(p=>p.value>0).length>1?Math.min(1.15,fraction/3):0))} 100`} strokeDashoffset={-start} transform="rotate(-90 80 80)"/>;})}
-      </svg><div className="ips59-ring-center"><strong>{covered?fa(net/10_000_000,3):"—"}</strong><small>همت تومان</small></div></>}
+      </svg><div className="ips59-ring-center"><strong>{covered?fa(net/10_000_000,3):"—"}</strong><small>همت</small></div></>}
     </div>
     <ul>{segments.map((s,i)=><li key={s.label}><i style={{background:signed&&s.value<0?"#ba6259":colors[i]}}/><span>{s.label}<small>{fa(s.available)} از {fa(s.count)} شرکت</small></span><b>{!s.available?"فاقد داده":signed?amount(s.value):net>0?`${fa(100*s.value/net,1)}٪`:amount(s.value)}</b></li>)}</ul>
     {signed&&<small className="ips59-chart-note">جمع خالص {amount(net)} · برای مبالغ منفی، مقایسه میله‌ای نمایش داده می‌شود.</small>}
@@ -47,7 +47,7 @@ export default function PortfolioOverview({financialCompanies}:{financialCompani
   const covered=rows.filter(r=>r.amount!==null).length;
   return <div className="content-stack ips59-portfolio">
     <section className="panel ips59-overview">
-      <div className="ips59-banner"><div className="ips59-banner-icon"><ChartPie size={25}/></div><div><span>روایت امروز / ترکیب سرمایه‌گذاری</span><h2>پرتفوی از چهار نگاه</h2><p>ترکیب مالی شرکت‌ها به تفکیک ماهیت، کنترل، بخش سرمایه‌گذاری و سرپرستی</p></div><aside><b>{fa(covered)} از {fa(rows.length)}</b><small>شرکت دارای داده در {yearLabel(year)}</small></aside></div>
+      <div className="ips59-banner"><div className="ips59-banner-icon"><ChartPie size={25}/></div><div><span>روایت امروز / ترکیب سرمایه‌گذاری</span><h2>پرتفوی از چهار نگاه</h2><p>ترکیب مالی شرکت‌ها به تفکیک ماهیت، کنترل، بخش سرمایه‌گذاری و سرپرستی</p></div></div>
       <div className="ips59-toolbar">
         <label>سال مالی<select aria-label="سال مالی ترکیب پرتفوی" value={year} onChange={e=>setYear(Number(e.target.value))}>{years.map(y=><option value={y} key={y}>{yearLabel(y)}</option>)}</select></label>
         <div className="ips59-toggle" role="group" aria-label="مبنای مالی">{([["equity","حقوق مالکانه"],["profit","سود خالص"]] as const).map(([v,l])=><button key={v} aria-pressed={metric===v} onClick={()=>setMetric(v)}>{l}</button>)}</div>

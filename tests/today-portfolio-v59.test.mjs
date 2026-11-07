@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {aggregateComposition,consecutivePairs,extendPortfolioFinancials,performanceHistory,portfolioPeriod,rankPerformance,scatterCell,scatterHistory} from '../lib/today-portfolio.mjs';
+import {aggregateComposition,averageDimensionScores,consecutivePairs,extendPortfolioFinancials,performanceHistory,portfolioPeriod,rankPerformance,scatterCell,scatterHistory} from '../lib/today-portfolio.mjs';
 import {financialAtYear,financialYears} from '../lib/financial-year.mjs';
 
 const json = (name) => JSON.parse(readFileSync(new URL(`../public/data/${name}.json`,import.meta.url),'utf8'));
@@ -74,4 +74,22 @@ test('management table has the requested 11 rows and exact links to the 10 legac
   assert.equal(rows.filter(row=>legacy.some(c=>normalize(c.name)===row.name)).length,10);
   assert.ok(rows.find(r=>r.name.startsWith('نورد لوله کوثر')).actions[0].includes('آماده‌سازی واگذاری'));
   assert.equal(rows.find(r=>r.name===partak).stewardship,'سرپرستی عملکردی');
+});
+
+test('radar benchmark uses the mean of observed dimension scores for each scope and year',()=>{
+  const d=(score)=>({score});
+  const sample=[
+    {dimensions:{a:d(0),b:d(8)}},
+    {dimensions:{a:d(6),b:d(null)}},
+    {dimensions:{a:d(null),b:d(4)}},
+    {dimensions:{a:d(NaN)}},
+  ];
+  assert.deepEqual(averageDimensionScores(sample,['a','b','missing']),{
+    a:{score:3,count:2},b:{score:6,count:2},missing:{score:null,count:0}
+  });
+  const compare=(companies,year)=>averageDimensionScores(companies.map(c=>financialAtYear(c,year)),['profitability']).profitability;
+  const prev=compare(group,1403), current=compare(group,1404);
+  assert.ok(current.count>0 && current.count<group.length);
+  assert.notEqual(prev.score,current.score);
+  assert.notEqual(current.score,compare(financials.filter(c=>c.scope==='گروه متیل'),1404).score);
 });

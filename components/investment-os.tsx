@@ -9,7 +9,7 @@ import ManagementNarratives from "@/components/company-narratives";
 import PortfolioOverview from "@/components/portfolio-overview";
 import { PerformanceTrend, ScatterJourney, ScatterJourneyPeriods, ScatterZones } from "@/components/performance-charts";
 import register from "@/public/data/portfolio-register.json";
-import { extendPortfolioFinancials, performanceHistory, rankPerformance, scatterHistory, type ScatterPeriod } from "@/lib/today-portfolio.mjs";
+import { averageDimensionScores, extendPortfolioFinancials, performanceHistory, rankPerformance, scatterHistory, type DimensionBenchmark, type ScatterPeriod } from "@/lib/today-portfolio.mjs";
 import "@/app/today-portfolio.css";
 import MovementPath from "@/components/movement-path-v29";
 import {
@@ -890,52 +890,56 @@ function redistribute(
     ...others.map((k) => [k, (weights[k] / otherTotal) * remaining]),
   ]);
 }
-function FinancialRadar({ company }: { company: FinancialCompany }) {
-  const entries = RANK_METRICS.map((metric) => ({
-    label: metric.label,
-    value: company.dimensions[metric.key]?.score ?? null,
+function FinancialRadar({company, benchmark, scope, year}:{
+  company:FinancialCompany; benchmark:DimensionBenchmark; scope:string; year:number;
+}) {
+  const entries = RANK_METRICS.map(metric=>({
+    ...metric, value:company.dimensions[metric.key]?.score ?? null,
+    benchmark:benchmark[metric.key]?.score ?? null, peers:benchmark[metric.key]?.count ?? 0,
   }));
-  const center = 150,
-    radius = 104;
-  const point = (value: number, index: number, extra = 0) => {
-    const angle = -Math.PI / 2 + (index * Math.PI * 2) / entries.length,
-      r = ((radius + extra) * value) / 10;
-    return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+  const centerX=184, centerY=155, radius=106;
+  const point=(value:number,index:number,extra=0)=>{
+    const angle=-Math.PI/2+index*2*Math.PI/entries.length;
+    const r=(radius+extra)*value/10;
+    return [centerX+Math.cos(angle)*r,centerY+Math.sin(angle)*r];
+  };
+  const shape=(key:"value"|"benchmark",className:string)=>{
+    if(entries.every(e=>e[key]!==null)){
+      return <polygon className={className} points={entries.map((e,i)=>point(e[key]!,i).join(",")).join(" ")}/>;
+    }
+    return entries.map((e,i)=>{
+      const j=(i+1)%entries.length, next=entries[j][key];
+      if(e[key]===null||next===null) return null;
+      const [x1,y1]=point(e[key]!,i),[x2,y2]=point(next,j);
+      return <line key={e.key} className={className} x1={x1} x2={x2} y1={y1} y2={y2}/>;
+    });
   };
   return (
-    <div className="financial-radar">
-      <svg
-        viewBox="0 0 300 300"
-        role="img"
-        aria-label={`پروفایل شش بعدی ${company.name}`}
-      >
-        {[2.5, 5, 7.5, 10].map((level) => (
-          <polygon
-            key={level}
-            points={entries.map((_, i) => point(level, i)).join(" ")}
-          />
-        ))}
-        {entries.map((_, i) => {
-          const [x, y] = point(10, i).split(",");
-          return <line key={i} x1={center} y1={center} x2={x} y2={y} />;
+    <div className="financial-radar ips60-radar">
+      <div className="ips60-radar-legend">
+        <span><i/>شرکت منتخب</span><span><i/>میانگین شرکت‌های {scope}</span>
+      </div>
+      <svg viewBox="0 0 368 312" role="img" aria-label={`مقایسه شش‌بُعدی ${company.name} با میانگین شرکت‌های ${scope}`}>
+        {[2.5,5,7.5,10].map(level=><polygon key={level} points={entries.map((_,i)=>point(level,i).join(",")).join(" ")}/>)}
+        {entries.map((e,i)=>{
+          const [x,y]=point(10,i);
+          return <line key={e.key} x1={centerX} x2={x} y1={centerY} y2={y}/>;
         })}
-        {entries.every(e=>e.value!==null)&&<polygon
-          className="financial-radar-area"
-          points={entries.map((entry, i) => point(entry.value!, i)).join(" ")}
-        />}
-        {entries.map((entry, i) => {
-          const [x, y] = point(10, i, 24).split(",");
-          const [cx, cy] = point(entry.value ?? 0, i).split(",");
-          return (
-            <g key={entry.label}>
-              {entry.value!==null&&<circle cx={cx} cy={cy} r="4" />}
-              <text x={x} y={y} textAnchor="middle">
-                {entry.label}
-              </text>
-            </g>
-          );
+        {shape("value","financial-radar-area")}
+        {shape("benchmark","ips60-radar-average")}
+        {entries.map((entry,i)=>{
+          const [x,y]=point(10,i,29);
+          const [cx,cy]=point(entry.value??0,i);
+          const [bx,by]=point(entry.benchmark??0,i);
+          const caption=`${entry.label}؛ شرکت ${fa(entry.value)}؛ میانگین ${fa(entry.benchmark)}؛ ${fa(entry.peers,0)} شرکت دارای داده`;
+          return <g key={entry.key}><title>{caption}</title>
+            {entry.benchmark!==null&&<circle className="ips60-radar-avg-dot" cx={bx} cy={by} r="2.4"/>}
+            {entry.value!==null&&<circle cx={cx} cy={cy} r="4"/>}
+            <text x={x} y={y} textAnchor="middle">{entry.label}</text>
+          </g>;
         })}
       </svg>
+      <p className="ips60-radar-note">سال {year.toLocaleString("fa-IR",{useGrouping:false})}؛ میانگین هر محور از شرکت‌های دارای داده در همان محور محاسبه شده است.</p>
     </div>
   );
 }
@@ -1023,6 +1027,7 @@ function FinancialView({
   const years=useMemo(()=>financialYears(scopeCompanies),[scopeCompanies]);
   const activeYear=years.includes(selectedYear)?selectedYear:years[0];
   const scoped=useMemo(()=>scopeCompanies.map(c=>financialAtYear(c,activeYear)),[scopeCompanies,activeYear]);
+  const benchmark=useMemo(()=>averageDimensionScores(scoped,RANK_METRICS.map(m=>m.key)),[scoped]);
   const [selectedName, setSelectedName] = useState(
     financialCompanies.find((c) => c.scope === "گروه آتیه")?.name ?? "",
   );
@@ -1306,13 +1311,15 @@ function FinancialView({
                     <p>{selected.name}</p>
                   </div>
                 </div>
-                <FinancialRadar company={selected} />
-                <div className="dimension-detail-list">
+                <FinancialRadar company={selected} benchmark={benchmark} scope={scope} year={activeYear} />
+                <div className="dimension-detail-list ips60-radar-values">
+                  <div className="ips60-radar-value-head"><span/><b>بُعد عملکرد</b><b>شرکت</b><b>میانگین</b></div>
                   {RANK_METRICS.map((metric) => (
                     <div key={metric.key}>
                       <i style={{ background: metric.color }} />
                       <span>{metric.long}</span>
                       <b>{fa(selected.dimensions[metric.key]?.score)}</b>
+                      <small>{fa(benchmark[metric.key]?.score)}</small>
                     </div>
                   ))}
                 </div>

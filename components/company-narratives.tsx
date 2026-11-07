@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowLeft, Building2, Compass, ChartNoAxesCombined, Target, ShieldCheck, X, Search, Network } from "lucide-react";
+import { ArrowLeft, Building2, Compass, ChartNoAxesCombined, Target, ShieldCheck, X, Search, Network, BriefcaseBusiness, Layers3, Flag } from "lucide-react";
 import marketData from "@/public/data/company-market-narratives.json";
 import management from "@/public/data/management-narratives.json";
 import summaries from "@/public/data/management-summary.json";
@@ -24,7 +24,14 @@ export function CompanyMarketNarrative({ id, onBack }: { id:string; onBack:()=>v
 
 
 const normalizeCompany = (name:string) => name.replace(/^(شرکت|هلدینگ)\s+/, "").replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/[\s\u200c]+/g," ").trim();
-const columns=["شرکت یا پروژه","جایگاه در پرتفوی","نقش در سبد","جمع‌بندی راهبردی و اقدام اولویت‌دار","انتظار آتیه","هم‌افزایی درون‌گروهی"];
+const columns=[
+  {key:"company",label:"شرکت یا پروژه",icon:BriefcaseBusiness},
+  {key:"position",label:"جایگاه در پرتفوی",icon:Layers3},
+  {key:"role",label:"نقش در سبد",icon:Compass},
+  {key:"actions",label:"اقدام اولویت‌دار",icon:Flag},
+  {key:"expectation",label:"انتظار آتیه",icon:Target},
+  {key:"synergies",label:"هم‌افزایی درون‌گروهی",icon:Network},
+] as const;
 
 export default function ManagementNarratives() {
   const [query,setQuery]=useState("");
@@ -33,20 +40,42 @@ export default function ManagementNarratives() {
   const opener=useRef<HTMLButtonElement>(null);
   const visible=summaries.filter(r=>!query.trim()||normalizeCompany(r.name).includes(normalizeCompany(query)));
   const legacy=selected&&management.companies.find(c=>normalizeCompany(c.name)===normalizeCompany(selected.name));
-  return <section className="panel ips59-management">
-    <div className="ips59-banner"><div className="ips59-banner-icon"><ShieldCheck size={26}/></div><div><span>روایت امروز / خروجی مدیریتی</span><h2>نمای راهبردی شرکت‌ها و پروژه‌ها</h2><p>نقش هر سرمایه‌گذاری، اقدام اولویت‌دار، انتظار آتیه و فرصت همکاری درون گروه</p></div><aside><b>{fa(summaries.length)}</b><small>شرکت و پروژه</small></aside></div>
-    <div className="ips59-management-tools"><label><Search size={17}/><input value={query} placeholder="جست‌وجوی نام شرکت یا پروژه" aria-label="جست‌وجوی شرکت در جمع‌بندی" onChange={e=>setQuery(e.target.value)}/></label><p>برای مطالعه جمع‌بندی تفصیلی روی نام شرکت بزنید.</p><span aria-live="polite">{fa(visible.length)} مورد</span></div>
-    <div className="ips59-table-scroll" tabIndex={0} role="region" aria-label="جدول جمع‌بندی مدیریتی"><table className="ips59-table ips59-management-table">
-      <thead><tr>{columns.map(h=><th key={h} scope="col">{h}</th>)}</tr></thead>
-      <tbody>{visible.map((r,i)=><tr key={r.name} style={{"--row":i} as React.CSSProperties}>
-        <th scope="row"><button type="button" className="ips59-company-link" onClick={e=>{opener.current=e.currentTarget;setSelected(r);dialog.current?.showModal();}}>{r.name}<ArrowLeft size={16}/></button></th>
-        <td data-label={columns[1]}><div className="ips59-position"><strong>{r.activity}</strong><div><span className="ips59-tag" data-tone="blue">{r.segment}</span><span className="ips59-tag" data-tone={r.control==="کنترلی"?"teal":"neutral"}>{r.control}</span><span className="ips59-tag" data-tone={r.stewardship==="سرپرستی مالی"?"gold":"neutral"}>{r.stewardship}</span></div></div></td>
-        <td data-label={columns[2]}>{r.role}</td>
-        <td data-label={columns[3]}><ul className="ips59-actions">{r.actions.map(a=><li key={a}>{a}</li>)}</ul></td>
-        <td data-label={columns[4]}><div className="ips59-expectation">{r.expectation}</div></td>
-        <td data-label={columns[5]}>{r.synergies.length?<div className="ips59-synergies">{r.synergies.map(s=><span key={s}><Network size={13}/>{s}</span>)}</div>:"—"}</td>
-      </tr>)}</tbody>
-    </table>{!visible.length&&<p className="ips59-empty">شرکت یا پروژه‌ای با این نام پیدا نشد.</p>}</div>
+  return <section className="panel ips59-management ips60-management">
+    <header className="ips60-management-hero">
+      <span className="ips60-management-icon"><ShieldCheck size={26}/></span>
+      <div><small>روایت امروز / تصمیم‌های پرتفوی</small><h2>نمای راهبردی شرکت‌ها و پروژه‌ها</h2><p>جایگاه هر سرمایه‌گذاری، اقدام اولویت‌دار و انتظار آتیه</p></div>
+      <div className="ips60-management-count"><strong>{fa(summaries.length)}</strong><span>شرکت و پروژه</span></div>
+    </header>
+    <div className="ips59-management-tools">
+      <label><Search size={17}/><input value={query} placeholder="جست‌وجوی نام شرکت یا پروژه" aria-label="جست‌وجوی شرکت در جمع‌بندی" onChange={e=>setQuery(e.target.value)}/>
+        {query&&<button type="button" aria-label="پاک کردن جست‌وجو" onClick={()=>setQuery("")}><X size={15}/></button>}
+      </label>
+      <p>با انتخاب نام هر شرکت، جمع‌بندی تفصیلی را ببینید.</p>
+      <span aria-live="polite">{query&&`${fa(visible.length)} نتیجه`}</span>
+    </div>
+    <div className="ips59-table-scroll ips60-management-table-wrap" tabIndex={0} role="region" aria-label="جدول جمع‌بندی مدیریتی">
+      <table className="ips59-table ips59-management-table" role="table">
+        <colgroup>{columns.map(({key})=><col key={key} className={`ips60-col-${key}`}/>)}</colgroup>
+        <thead role="rowgroup"><tr role="row">{columns.map(({key,label,icon:Icon})=><th key={key} scope="col" role="columnheader"><span><Icon size={15} aria-hidden="true"/>{label}</span></th>)}</tr></thead>
+        <tbody role="rowgroup">{visible.map((r,i)=><tr key={r.name} role="row" style={{"--row":i} as React.CSSProperties}>
+          <th scope="row" role="rowheader">
+            <button type="button" className="ips59-company-link" aria-label={r.name} onClick={e=>{opener.current=e.currentTarget;setSelected(r);dialog.current?.showModal();}}>
+              <span className="ips60-company-name">{r.name}</span>
+              <span className="ips60-company-detail">مشاهده جزئیات <ArrowLeft size={13} aria-hidden="true"/></span>
+            </button>
+          </th>
+          <td role="cell" data-label={columns[1].label}><div className="ips59-position"><strong>{r.activity}</strong>
+            <div><span className="ips59-tag" data-tone="blue">{r.segment}</span><span className="ips59-tag" data-tone={r.control==="کنترلی"?"teal":"neutral"}>{r.control}</span>
+              <span className="ips59-tag" data-tone={r.stewardship==="سرپرستی مالی"?"gold":r.stewardship==="سرپرستی عملکردی"?"teal":"neutral"}>{r.stewardship}</span></div>
+          </div></td>
+          <td role="cell" data-label={columns[2].label}>{r.role}</td>
+          <td role="cell" data-label={columns[3].label}><ul className="ips59-actions">{r.actions.map((a,j)=><li key={a}><span aria-hidden="true">{fa(j+1)}</span><div>{a}</div></li>)}</ul></td>
+          <td role="cell" data-label={columns[4].label}><div className="ips59-expectation">{r.expectation}</div></td>
+          <td role="cell" data-label={columns[5].label}>{r.synergies.length?<div className="ips59-synergies">{r.synergies.map(s=><span key={s}><Network size={13} aria-hidden="true"/>{s}</span>)}</div>:<span className="ips60-not-recorded">ثبت نشده</span>}</td>
+        </tr>)}</tbody>
+      </table>
+      {!visible.length&&<p className="ips59-empty">شرکت یا پروژه‌ای با این نام پیدا نشد.</p>}
+    </div>
     <dialog className="ips59-management-dialog" ref={dialog} aria-labelledby="ips59-detail-title" onClose={()=>{setSelected(null);opener.current?.focus();}}>
       <header><div><span>جمع‌بندی تفصیلی</span><h2 id="ips59-detail-title">{selected?.name}</h2></div><button type="button" autoFocus onClick={()=>dialog.current?.close()} aria-label="بستن جمع‌بندی تفصیلی"><X size={23}/></button></header>
       {selected&&<div className="ips59-dialog-body" key={selected.name}>
