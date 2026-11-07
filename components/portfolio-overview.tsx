@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Building2, BriefcaseBusiness, Layers3, ShieldCheck, Network, Compass, ChartPie } from "lucide-react";
 import register from "@/public/data/portfolio-register.json";
-import { aggregateComposition, portfolioPeriod, type Composition } from "@/lib/today-portfolio.mjs";
+import { aggregateComposition, compositionShares, portfolioPeriod, type Composition } from "@/lib/today-portfolio.mjs";
 import type { FinancialCompany } from "./investment-os";
 
 const fa = (n:number, digits=0) => n.toLocaleString("fa-IR",{maximumFractionDigits:digits});
@@ -18,23 +18,57 @@ const lenses = [
   {key:"stewardship",title:"استراتژی سرپرستی",icon:Network,colors:["#256d93","#378e80","#b7843e"]},
 ] as const;
 
-function CompositionCard({title, Icon, segments, colors, periodKey}:{title:string;Icon:typeof Building2;segments:Composition[];colors:readonly string[];periodKey:string}) {
-  const signed = segments.some(s=>s.available && s.value < 0);
-  const net = segments.reduce((s,x)=>s+x.value,0);
-  const covered = segments.reduce((s,x)=>s+x.available,0);
-  const absMax = Math.max(1,...segments.map(s=>Math.abs(s.value)));
-  let offset = 0;
-  return <article className="ips59-composition">
+const shareText=(fraction:number, precise:boolean)=>{
+  const percent=fraction*100;
+  if(precise&&percent>0&&percent<.01) return "کمتر از ۰٫۰۱٪";
+  return `${fa(percent,precise?2:1)}٪`;
+};
+
+function CompositionCard({title, Icon, segments, colors, periodKey, stewardship=false}:{
+  title:string; Icon:typeof Building2; segments:Composition[]; colors:readonly string[]; periodKey:string; stewardship?:boolean;
+}) {
+  const signed=segments.some(s=>s.available&&s.value<0);
+  const showBars=signed&&!stewardship;
+  const magnitudeBasis=stewardship&&signed;
+  const net=segments.reduce((sum,s)=>sum+s.value,0);
+  const covered=segments.reduce((sum,s)=>sum+s.available,0);
+  const absMax=Math.max(1,...segments.map(s=>Math.abs(s.value)));
+  const shares=showBars?[]:compositionShares(segments,magnitudeBasis);
+  const visibleArcs=shares.filter(s=>s!==null&&s>0).length;
+  const color=(value:number,index:number)=>value<0?"#ba6259":colors[index];
+  let offset=0;
+  return <article className={`ips59-composition${stewardship?" ips61-stewardship":""}`}>
     <header><span><Icon size={19}/></span><h3>{title}</h3></header>
     <div className="ips59-ring-frame" key={periodKey}>
-      {signed ? <div className="ips59-signed-bars" aria-label="مقایسه خالص دسته‌ها؛ سمت چپ منفی و سمت راست مثبت">
-        {segments.map((s,i)=><div key={s.label} title={`${s.label}: ${s.available?amount(s.value):"فاقد داده"}`}><i style={{background:s.value<0?"#ba6259":colors[i],width:`${Math.abs(s.value)/absMax*48}%`,left:s.value<0?`${50-Math.abs(s.value)/absMax*48}%`:"50%"}}/></div>)}
-      </div> : <><svg viewBox="0 0 160 160" aria-hidden="true"><circle cx="80" cy="80" r="63" stroke="#e7eff3" strokeWidth="15" fill="none"/>
-        {segments.map((s,i)=>{const fraction=net>0?s.value/net*100:0; const start=offset;offset+=fraction;return fraction>0&&<circle key={s.label} cx="80" cy="80" r="63" pathLength="100" fill="none" stroke={colors[i]} strokeWidth="15" strokeDasharray={`${Math.max(.02,fraction-(segments.filter(p=>p.value>0).length>1?Math.min(1.15,fraction/3):0))} 100`} strokeDashoffset={-start} transform="rotate(-90 80 80)"/>;})}
-      </svg><div className="ips59-ring-center"><strong>{covered?fa(net/10_000_000,3):"—"}</strong><small>همت</small></div></>}
+      {showBars ? <div className="ips59-signed-bars" aria-label="مقایسه خالص دسته‌ها؛ سمت چپ منفی و سمت راست مثبت">
+        {segments.map((s,i)=><div key={s.label} title={`${s.label}: ${s.available?amount(s.value):"فاقد داده"}`}><i style={{background:color(s.value,i),width:`${Math.abs(s.value)/absMax*48}%`,left:s.value<0?`${50-Math.abs(s.value)/absMax*48}%`:"50%"}}/></div>)}
+      </div> : <>
+        <svg viewBox="0 0 160 160" aria-hidden="true">
+          <circle cx="80" cy="80" r="63" stroke="#e7eff3" strokeWidth="15" fill="none"/>
+          {segments.map((s,i)=>{
+            const fraction=(shares[i]??0)*100;
+            const start=offset;offset+=fraction;
+            const gap=visibleArcs>1&&fraction>=.25?Math.min(1.15,fraction/3):0;
+            return fraction>0&&<circle key={s.label} cx="80" cy="80" r="63" pathLength="100" fill="none" stroke={color(s.value,i)}
+              strokeWidth="15" strokeDasharray={`${fraction-gap} 100`} strokeDashoffset={-start} transform="rotate(-90 80 80)"/>;
+          })}
+        </svg>
+        <div className="ips59-ring-center"><strong>{covered?fa(net/10_000_000,3):"—"}</strong><small>{magnitudeBasis?"جمع خالص · همت":"همت"}</small></div>
+      </>}
     </div>
-    <ul>{segments.map((s,i)=><li key={s.label}><i style={{background:signed&&s.value<0?"#ba6259":colors[i]}}/><span>{s.label}<small>{fa(s.available)} از {fa(s.count)} شرکت</small></span><b>{!s.available?"فاقد داده":signed?amount(s.value):net>0?`${fa(100*s.value/net,1)}٪`:amount(s.value)}</b></li>)}</ul>
-    {signed&&<small className="ips59-chart-note">جمع خالص {amount(net)} · برای مبالغ منفی، مقایسه میله‌ای نمایش داده می‌شود.</small>}
+    <ul>{segments.map((s,i)=>{
+      const share=shares[i];
+      const display=!s.available?"فاقد داده":showBars?amount(s.value):share!=null?shareText(share,stewardship):stewardship?"—":amount(s.value);
+      return <li key={s.label} data-loss={s.value<0} title={s.available?`${s.label}: ${amount(s.value)}`:undefined}>
+        <i style={{background:color(s.value,i)}}/>
+        <span>{s.label}<small>{fa(s.available)} از {fa(s.count)} شرکت{magnitudeBasis&&s.value<0?` · زیان ${amount(Math.abs(s.value))}`:""}</small></span>
+        <b>{display}</b>
+      </li>;
+    })}</ul>
+    {showBars&&<small className="ips59-chart-note">جمع خالص {amount(net)} · برای مبالغ منفی، مقایسه میله‌ای نمایش داده می‌شود.</small>}
+    {stewardship&&<small className="ips59-chart-note">{magnitudeBasis
+      ?"سهم هر دسته از مجموع قدر مطلق مبالغ؛ زیان با قرمز مشخص است."
+      :"درصد سهم هر دسته از کل مبلغ، با فیلترهای انتخاب‌شده."}</small>}
   </article>;
 }
 
@@ -53,7 +87,7 @@ export default function PortfolioOverview({financialCompanies}:{financialCompani
         <div className="ips59-toggle" role="group" aria-label="مبنای مالی">{([["equity","حقوق مالکانه"],["profit","سود خالص"]] as const).map(([v,l])=><button key={v} aria-pressed={metric===v} onClick={()=>setMetric(v)}>{l}</button>)}</div>
         <div className="ips59-toggle" role="group" aria-label="دامنه مالکیت">{([["all","کل شرکت‌ها"],["direct","سهم شرکت آتیه"],["group","سهم گروه آتیه"]] as const).map(([v,l])=><button key={v} aria-pressed={scope===v} onClick={()=>setScope(v)}>{l}</button>)}</div>
       </div>
-      <div className="ips59-composition-grid">{lenses.map(({key,title,icon,colors})=><CompositionCard key={key} title={title} Icon={icon} segments={aggregateComposition(rows,key)} colors={colors} periodKey={`${year}-${scope}-${metric}`}/>)}</div>
+      <div className="ips59-composition-grid">{lenses.map(({key,title,icon,colors})=><CompositionCard key={key} title={title} Icon={icon} segments={aggregateComposition(rows,key)} colors={colors} stewardship={key==="stewardship"} periodKey={`${year}-${scope}-${metric}`}/>)}</div>
       <div className="ips59-data-note"><Layers3 size={16}/><div>مبنای طبقه‌بندی و درصد مالکیت: آخرین جدول سهامداری؛ برای سال‌های گذشته نیز همین درصدها اعمال می‌شود. جمع ارقام شرکت‌ها معادل صورت مالی تلفیقی نیست.{metric==="profit"&&" سود خالص، سود نقدی دریافتی نیست."}
       {covered<rows.length&&<small>فاقد داده برای فیلتر انتخاب‌شده: {rows.filter(r=>r.amount===null).map(r=>r.name).join("، ")}.</small>}</div></div>
     </section>

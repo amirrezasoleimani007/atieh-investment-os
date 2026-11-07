@@ -8,6 +8,7 @@ export type PerformancePeriod = {year:number;score:number|null;rank:number|null;
 export function extendPortfolioFinancials<T extends FinancialCompany>(companies:T[],register:Register):FinancialCompany[];
 export function portfolioPeriod(rows:RegisterRow[], financials:FinancialCompany[], year:number, metric:'equity'|'profit', scope:'all'|'direct'|'group'):PortfolioRow[];
 export function aggregateComposition(rows:PortfolioRow[], key:'nature'|'control'|'segment'|'stewardship'):Composition[];
+export function compositionShares(segments:Composition[], useMagnitude?:boolean): (number|null)[];
 export function scatterCell(x:number,y:number):number;
 export function scatterHistory(company:FinancialCompany|undefined,years:number[],xKey:string,yKey:string):ScatterPeriod[];
 export function rankPerformance<T extends FinancialCompany>(companies:T[],weights:Record<string,number>):Array<T & {dynamicScore:number|null;dynamicRank:number|null}>;

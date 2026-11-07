@@ -233,3 +233,24 @@
  .ips60-route-leg,.ips60-route-dash { animation:none!important }
  .ips59-company-link,.ips60-company-detail svg { transition:none!important }
 }
+
+/* Keep axis names, tick marks and the data surface in distinct layout areas. */
+.ips61-scatter { display:grid; grid-template-columns:26px minmax(0,1fr); grid-template-rows:auto auto auto auto; align-items:start; column-gap:9px; direction:ltr; margin:14px clamp(11px,1.65vw,24px) 16px; }
+.ips61-axis-title { direction:rtl; display:flex; flex-wrap:wrap; align-items:center; gap:4px 7px; min-width:0; width:fit-content; max-width:100%; padding:6px 9px; border:1px solid #d4e3e9; border-radius:9px; background:#f2f7f9; color:#23475f; font-size:12px; line-height:1.65; }
+.ips61-axis-title svg { color:#286c84; flex:none; }
+.ips61-axis-title span { color:#506b7d; font-size:11px; font-weight:600; }
+.ips61-axis-title strong { color:#163e56; font-weight:800; }
+.ips61-axis-y { grid-area:1/2; justify-self:start; margin-bottom:16px; }
+.ips61-axis-x { grid-area:4/2; justify-self:center; margin-top:9px; }
+.ips61-ticks-y,.ips61-ticks-x { display:flex; justify-content:space-between; color:#406175; font-size:12px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+.ips61-ticks-y { grid-area:2/1; align-self:stretch; align-items:end; flex-direction:column; padding:1px 0; }
+.ips61-ticks-x { grid-area:3/2; padding-top:8px; }
+.investment-os .ips61-scatter .scatter-plot { grid-area:2/2; height:clamp(216px,26vw,300px); min-width:0; border:1px solid #abbfc9; border-left-color:#6f8e9f; border-bottom-color:#6f8e9f; }
+.ips61-scatter .scatter-point:is(.selected,:focus-visible) span { display:block; }
+.ips61-stewardship li b { text-align:end; white-space:normal; }
+.ips61-stewardship li[data-loss=true] :is(b,small) { color:#973e35; }
+@media(max-width:520px) {
+ .ips61-scatter { grid-template-columns:21px minmax(0,1fr); column-gap:6px; }
+ .ips61-axis-title { padding:5px 7px; font-size:11px; }
+ .ips61-axis-title svg { width:14px; height:14px; }
+}

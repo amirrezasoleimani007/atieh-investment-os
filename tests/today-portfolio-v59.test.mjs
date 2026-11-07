@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {aggregateComposition,averageDimensionScores,consecutivePairs,extendPortfolioFinancials,performanceHistory,portfolioPeriod,rankPerformance,scatterCell,scatterHistory} from '../lib/today-portfolio.mjs';
+import {aggregateComposition,averageDimensionScores,compositionShares,consecutivePairs,extendPortfolioFinancials,performanceHistory,portfolioPeriod,rankPerformance,scatterCell,scatterHistory} from '../lib/today-portfolio.mjs';
 import {financialAtYear,financialYears} from '../lib/financial-year.mjs';
 
 const json = (name) => JSON.parse(readFileSync(new URL(`../public/data/${name}.json`,import.meta.url),'utf8'));
@@ -92,4 +92,19 @@ test('radar benchmark uses the mean of observed dimension scores for each scope 
   assert.ok(current.count>0 && current.count<group.length);
   assert.notEqual(prev.score,current.score);
   assert.notEqual(current.score,compare(financials.filter(c=>c.scope==='گروه متیل'),1404).score);
+});
+
+test('stewardship ring shares follow financial filters and use magnitudes only when loss is present',()=>{
+  const equity=aggregateComposition(portfolioPeriod(register.rows,financials,1404,'equity','direct'),'stewardship');
+  const equityShares=compositionShares(equity);
+  const equityTotal=equity.reduce((s,r)=>s+r.value,0);
+  assert.ok(Math.abs(equityShares.reduce((s,r)=>s+r,0)-1)<1e-12);
+  assert.equal(equityShares[equity.findIndex(r=>r.label==='عملیاتی')],6044557*.8752546/equityTotal);
+  const profit=aggregateComposition(portfolioPeriod(register.rows,financials,1403,'profit','direct'),'stewardship');
+  const operation=profit.findIndex(r=>r.label==='عملیاتی');
+  assert.ok(profit[operation].value<0);
+  const shares=compositionShares(profit,true);
+  assert.ok(Math.abs(shares.reduce((s,r)=>s+r,0)-1)<1e-12);
+  assert.equal(shares[operation],Math.abs(-7892*.8752546)/profit.reduce((s,r)=>s+Math.abs(r.value),0));
+  assert.deepEqual(compositionShares([{available:0,value:0},{available:1,value:0}],true),[null,null]);
 });

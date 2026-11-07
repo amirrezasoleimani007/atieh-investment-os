@@ -27,6 +27,8 @@ import { financialScenarioScore } from "@/lib/financial-scenario.mjs";
 import {
   Activity,
   ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   BarChart3,
   BriefcaseBusiness,
   ChevronLeft,
@@ -831,12 +833,11 @@ function ScatterChart({
           <small>امتیازهای استانداردشده صفر تا ده</small>
         </div>
       </header>
-      <div className="scatter-wrap compact-scatter">
-        <div className="axis-label y-label">{definition.yLabel} · کم ← زیاد</div>
-        <div className="scatter-plot">
+      <figure className="ips61-scatter">
+        <div className="ips61-axis-title ips61-axis-y"><ArrowUp size={16} aria-hidden="true"/><span>محور عمودی</span><strong>{definition.yLabel}</strong></div>
+        <div className="ips61-ticks-y" aria-hidden="true"><span>۱۰</span><span>۵</span><span>۰</span></div>
+        <div className="scatter-plot" role="group" aria-label={`محور عمودی: ${definition.yLabel}؛ محور افقی: ${definition.xLabel}؛ امتیاز از صفر تا ده`}>
           <ScatterZones />
-          <div className="scatter-y-scale" aria-label="محور عمودی: صفر کم تا ده زیاد"><span>۱۰ · زیاد</span><span>۵</span><span>۰ · کم</span></div>
-          <div className="scatter-x-scale" aria-label="محور افقی: صفر کم تا ده زیاد"><span>۰ · کم</span><span>۵</span><span>۱۰ · زیاد</span></div>
           {journey ? <ScatterJourney key={replay} points={journey}/> : rows.map((c, index) => {
             const x = c.scatterAxes?.[definition.x],
               y = c.scatterAxes?.[definition.y];
@@ -861,8 +862,9 @@ function ScatterChart({
             );
           })}
         </div>
-        <div className="axis-label x-label">{definition.xLabel} · از صفر تا ده</div>
-      </div>
+        <div className="ips61-ticks-x" aria-hidden="true"><span>۰</span><span>۵</span><span>۱۰</span></div>
+        <figcaption className="ips61-axis-title ips61-axis-x"><ArrowRight size={16} aria-hidden="true"/><span>محور افقی</span><strong>{definition.xLabel}</strong></figcaption>
+      </figure>
       {journey&&<ScatterJourneyPeriods points={journey}/>}
     </article>
   );
