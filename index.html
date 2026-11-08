@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="atieh-release" content="61"><link rel="icon" href="./atieh-logo.png"><title>سامانه خط‌مشی سرمایه‌گذاری آتیه فولاد | نسخه ۶۱</title></head>
-<body><div id="root">در حال بارگذاری نسخه ۶۱…</div><script type="module">
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="atieh-release" content="62"><link rel="icon" href="./atieh-logo.png"><title>سامانه خط‌مشی سرمایه‌گذاری آتیه فولاد | نسخه ۶۲</title></head>
+<body><div id="root">در حال بارگذاری نسخه ۶۲…</div><script type="module">
 const root=document.querySelector("#root");
 try {
- const response=await fetch(new URL("./assets/ips-v61.pack",location.href));
+ const response=await fetch(new URL("./assets/ips-v62.pack",location.href));
  if(!response.ok||!response.body)throw Error("download");
  const stream=response.body;
  const data=await new Response(stream.pipeThrough(new DecompressionStream("gzip"))).json();

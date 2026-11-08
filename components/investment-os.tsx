@@ -11,6 +11,7 @@ import { PerformanceTrend, ScatterJourney, ScatterJourneyPeriods, ScatterZones }
 import register from "@/public/data/portfolio-register.json";
 import { averageDimensionScores, extendPortfolioFinancials, performanceHistory, rankPerformance, scatterHistory, type DimensionBenchmark, type ScatterPeriod } from "@/lib/today-portfolio.mjs";
 import "@/app/today-portfolio.css";
+import GrowthMatrix from "@/components/growth-matrix";
 import MovementPath from "@/components/movement-path-v29";
 import {
   MOVEMENT_BASELINE,
@@ -2105,7 +2106,11 @@ function calculateOpportunity(
           0,
         ),
       );
-    return { ...row.sector, opportunity: bad / (good + bad) };
+    return {
+      ...row.sector,
+      opportunity: bad / (good + bad),
+      topsis: { good, bad, weighted: row.values, positive, negative, denominators },
+    };
   });
   const sorted = [...scored].sort(
       (a, b) => b.opportunity - a.opportunity || a.id - b.id,
@@ -2165,22 +2170,6 @@ const PORTFOLIO_HORIZONS: {
     focus: { core: 30, adjacent: 20, transform: 50 },
   },
 ];
-function redistributePortfolio(
-  weights: PortfolioWeights,
-  key: PortfolioHorizon,
-  next: number,
-) {
-  const bounded = Math.max(0, Math.min(90, next)),
-    others = PORTFOLIO_HORIZONS.map((item) => item.key).filter(
-      (item) => item !== key,
-    ),
-    sum = others.reduce((total, item) => total + weights[item], 0) || 1,
-    remaining = 100 - bounded;
-  return Object.fromEntries([
-    [key, bounded],
-    ...others.map((item) => [item, (weights[item] / sum) * remaining]),
-  ]) as PortfolioWeights;
-}
 function levelText(value: number) {
   return value >= MATRIX_THRESHOLDS.high
     ? "بالا"
@@ -2455,9 +2444,7 @@ function Growth({
     () => new Map(ranking.map((row) => [row.id, row])),
     [ranking],
   );
-  const strategicRows = useMemo<
-    { id: number; strategicRaw: number; dynamicY: number; baselineY: number }[]
-  >(
+  const strategicRows = useMemo(
     () => calculateStrategicFit(opportunities, portfolioWeights),
     [opportunities, portfolioWeights],
   );
@@ -2796,213 +2783,20 @@ function Growth({
               <BarChart3 /> مشاهده رتبه‌ها
             </button>
           </section>
-          <section className="panel portfolio-policy-lab">
-            <header>
-              <div>
-                <span className="overline">سیاست پرتفوی</span>
-                <h2>لنز تصمیم‌گیری گروه را انتخاب کنید</h2>
-                <p>
-                  وزن هسته، مجاور و تحول‌گرا مستقیماً در همان منطق تناسب راهبردی
-                  مدل اعمال می‌شود.
-                </p>
-              </div>
-              <button
-                onClick={() =>
-                  setPortfolioWeights({ core: 60, adjacent: 30, transform: 10 })
-                }
-              >
-                بازگشت به ترکیب پایه ۶۰ / ۳۰ / ۱۰
-              </button>
-            </header>
-            <div className="horizon-policy-grid">
-              {PORTFOLIO_HORIZONS.map((item, index) => {
-                const Icon =
-                  index === 0 ? Target : index === 1 ? Network : Sparkles;
-                return (
-                  <button
-                    key={item.key}
-                    className={leadHorizon.key === item.key ? "leading" : ""}
-                    style={{ "--horizon": item.color } as React.CSSProperties}
-                    onClick={() => setPortfolioWeights(item.focus)}
-                  >
-                    <span>
-                      <Icon />
-                    </span>
-                    <div>
-                      <small>{item.question}</small>
-                      <b>{item.label}</b>
-                      <em>تمرکز سریع</em>
-                    </div>
-                    <strong>{fa(portfolioWeights[item.key], 0)}٪</strong>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="policy-live-controls">
-              <div
-                className="policy-orbit"
-                style={{
-                  background: `conic-gradient(${PORTFOLIO_HORIZONS[0].color} 0 ${portfolioWeights.core}%,${PORTFOLIO_HORIZONS[1].color} ${portfolioWeights.core}% ${portfolioWeights.core + portfolioWeights.adjacent}%,${PORTFOLIO_HORIZONS[2].color} ${portfolioWeights.core + portfolioWeights.adjacent}% 100%)`,
-                }}
-              >
-                <span>
-                  <b>۷۷</b>
-                  <small>فرصت در حرکت</small>
-                </span>
-              </div>
-              <div className="portfolio-sliders">
-                {PORTFOLIO_HORIZONS.map((item) => (
-                  <label
-                    key={item.key}
-                    style={{ "--horizon": item.color } as React.CSSProperties}
-                  >
-                    <span>
-                      <i />
-                      <b>{item.label}</b>
-                      <strong>{fa(portfolioWeights[item.key], 0)}٪</strong>
-                    </span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="90"
-                      value={Math.round(portfolioWeights[item.key])}
-                      onChange={(event) =>
-                        setPortfolioWeights(
-                          redistributePortfolio(
-                            portfolioWeights,
-                            item.key,
-                            Number(event.target.value),
-                          ),
-                        )
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-              <div className="policy-live-note">
-                <ShieldCheck />
-                <div>
-                  <b>بازآرایی زنده ماتریس</b>
-                  <p>
-                    امتیاز خام هم‌راستایی با وزن فعال محاسبه و سپس با یک مقیاس
-                    ثابت به محدوده نمایشی ۰٫۵ تا ۹٫۵ منتقل می‌شود؛ بنابراین
-                    تغییر سیاست باعث رتبه‌بندی اجباری مجدد نقاط نمی‌شود و محور
-                    رشد مستقل می‌ماند.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-          <section
-            id="opportunity-matrix-stage"
-            className="panel premium-opportunity-matrix"
-          >
-            <header>
-              <div>
-                <span>نقشه تصمیم ۷۷ فرصت</span>
-                <h3>هر نقطه یک مسیر بالقوه برای رشد گروه است</h3>
-              </div>
-              <div className="matrix-legend">
-                {PORTFOLIO_HORIZONS.map((item) => (
-                  <span key={item.key}>
-                    <i style={{ background: item.color }} />
-                    {item.label}
-                  </span>
-                ))}
-              </div>
-            </header>
-            <div className="matrix-canvas-wrap">
-              <div className="premium-matrix-y">
-                <span>تناسب زیاد</span>
-                <b>تناسب راهبردی با پرتفوی گروه</b>
-                <span>تناسب کم</span>
-              </div>
-              <div className="premium-matrix-canvas">
-                <div className="matrix-glow" />
-                <div className="premium-zones">
-                  {Array.from({ length: 9 }, (_, index) => {
-                    const x = index % 3,
-                      y = 2 - Math.floor(index / 3),
-                      sample = zoneFor(
-                        x === 2 ? 8 : x === 1 ? 5 : 2,
-                        y === 2 ? 8 : y === 1 ? 5 : 2,
-                      );
-                    return (
-                      <div
-                        key={index}
-                        className={`premium-zone premium-zone-${x}-${y}`}
-                      >
-                        <span>{sample.title}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {matrixRows.map((row) => {
-                  const horizon = dominantHorizon(row, portfolioWeights);
-                  return (
-                    <button
-                      key={row.id}
-                      aria-label={row.name}
-                      className={`premium-opportunity-point ${row.id === selected.id ? "selected" : ""}`}
-                      style={
-                        {
-                          left: `${plotPercent(row.x)}%`,
-                          bottom: `${plotPercent(row.dynamicY)}%`,
-                          "--point": horizon.color,
-                        } as React.CSSProperties
-                      }
-                      onClick={() => setSelectedId(row.id)}
-                    >
-                      <i />
-                      <span>
-                        <b>{row.name}</b>
-                        <small>{zoneFor(row.x, row.dynamicY).title}</small>
-                      </span>
-                    </button>
-                  );
-                })}
-                {Math.abs(fitDelta) > 0.03 && (
-                  <div
-                    className="selected-movement"
-                    style={{
-                      left: `${plotPercent(selected.x)}%`,
-                      bottom: `${plotPercent(Math.min(selected.baselineY, selected.dynamicY))}%`,
-                      height: `${Math.abs(plotPercent(selected.dynamicY) - plotPercent(selected.baselineY))}%`,
-                    }}
-                  >
-                    <i />
-                  </div>
-                )}
-                <div
-                  className="baseline-point"
-                  style={{
-                    left: `${plotPercent(selected.x)}%`,
-                    bottom: `${plotPercent(selected.baselineY)}%`,
-                  }}
-                  title="جایگاه در ترکیب پایه"
-                />
-              </div>
-              <div className="premium-matrix-x">
-                <span>پتانسیل کمتر</span>
-                <b>پتانسیل رشد</b>
-                <span>پتانسیل بیشتر</span>
-              </div>
-            </div>
-            <footer>
-              <span>
-                <i className="current-dot" />
-                جایگاه تحت سیاست فعلی
-              </span>
-              <span>
-                <i className="base-dot" />
-                جایگاه ترکیب پایه
-              </span>
-              <b>
-                نقاط بر اساس افقی رنگ شده‌اند که بیشترین سهم را در تناسب فعلی
-                آن‌ها دارد.
-              </b>
-            </footer>
-          </section>
+          <GrowthMatrix
+            rows={matrixRows}
+            selected={selected}
+            onSelect={setSelectedId}
+            horizons={PORTFOLIO_HORIZONS}
+            policy={portfolioWeights}
+            setPolicy={setPortfolioWeights}
+            basePolicy={MOVEMENT_BASELINE.fitWeights}
+            criteria={GROWTH_CRITERIA.map(item=>({
+              key:item.key, label:item.label, benefit:item.benefit, weight:weights[item.key],
+              value:criterionText(item.key,selected.criteria[item.key]),
+            }))}
+            relatedness={opportunityRelatedness}
+          />
           <section
             id="selected-opportunity-story"
             className="panel opportunity-story executive-story"

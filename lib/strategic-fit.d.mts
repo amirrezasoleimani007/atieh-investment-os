@@ -1,0 +1,15 @@
+export type Horizon = "core" | "adjacent" | "transform";
+export type PortfolioWeights = Record<Horizon, number>;
+export type FitInput = { id: number; coreFit: number; adjacentFit: number; transformFit: number; yPlotBaseline: number };
+export type FitResult = { id: number; strategicRaw: number; contributions: PortfolioWeights; dynamicY: number; baselineY: number };
+type Relatedness = { ids: number[]; matrix: number[][] };
+type Frontier = { id: number; name: string; adjacentEffective: Record<"downstream" | "mineral" | "steelSupport" | "paint", number> };
+export const FIT_MODEL_V22: Readonly<{ version: string; plot: Readonly<{ min: number; center: number; max: number }>; matrix: Readonly<{ medium: number; high: number }>; strategicRaw: Readonly<{ low: number; high: number; ceiling: number }> }>;
+export const PORTFOLIO_WEIGHT_MAX: number;
+export function plotPercent(value: number): number;
+export function strategicDisplayCoordinate(value: number): number;
+export function optionalityIndex(values: number[], current: number): number;
+export function redistributePortfolioWeights(weights: PortfolioWeights, key: Horizon, next: number): PortfolioWeights;
+export function calculateStrategicFit(opportunities: FitInput[], weights: PortfolioWeights): FitResult[];
+export function calculateOpportunityNetwork(opportunities: {id: number; name: string}[], relatedness: Relatedness, currentXRows: {id:number; x:number}[]): {id:number; optionalityRaw:number; optionality:number; nextPaths:string[]}[];
+export function transformFitEvidence(opportunities: Frontier[], relatedness: Relatedness, sourceId: number): {top: {id:number; name:string; weight:number; frontier:number; contribution:number}[]; remainder:number; total:number} | null;
