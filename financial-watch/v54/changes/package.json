@@ -1,0 +1,54 @@
+{
+  "name": "ips-financial-dashboard",
+  "version": "54.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "install:ci": "bash scripts/install-ci.sh",
+    "dev": "vite --config vite.pages.config.ts --host 127.0.0.1",
+    "build": "npm run typecheck && npm run build:standalone && npm run build:pages",
+    "build:pages": "node scripts/build-watch-v7.mjs && vite build --config vite.pages.config.ts && node scripts/build-pages.mjs",
+    "build:standalone": "node scripts/build-watch-v7.mjs && vite build --config vite.standalone.config.ts && node scripts/build-standalone.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:engines": "node --import tsx --test tests/value-creation.test.ts tests/financial-watch-policy.test.ts tests/investment-asset-productivity.test.ts tests/planning-scenario.test.ts tests/portfolio-pulse.test.ts tests/reliability-v49.test.ts tests/report-period.test.ts tests/watch-v7.test.ts",
+    "start": "vite preview --config vite.pages.config.ts --host 127.0.0.1",
+    "test": "npm run test:engines && node --import tsx --test tests/watch-ui-v53.test.tsx",
+    "validate:artifact": "bash scripts/validate-artifact.sh",
+    "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
+    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
+  },
+  "dependencies": {
+    "@fontsource/vazirmatn": "^5.3.0",
+    "drizzle-orm": "0.45.2",
+    "html-to-image": "^1.11.13",
+    "lucide-react": "^1.26.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "react-server-dom-webpack": "19.2.6",
+    "tailwindcss": "4.2.1",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "vinext": "0.0.50",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "type": "module",
+  "displayName": "سامانه تحلیل مالی و راهبری سرمایه آتیه"
+}

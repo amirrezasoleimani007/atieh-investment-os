@@ -1,0 +1,19 @@
+{
+  "applicationVersion": "54.0.0",
+  "base": "financial-watch-v53",
+  "rulebookVersion": 7,
+  "publishPrefix": "financial-watch/v54/",
+  "sourceSha256": "864b151a64df7ab339484bd0dfe78555673f758f71eb0dda64be831d7a4f11f7",
+  "htmlSha256": "42b52860acb31cd893faed2c5fe215cc1b7a8685d527644d7b3eb893973d7135",
+  "htmlBytes": 2859343,
+  "exactSourceMatches": 6561,
+  "validation": {
+    "typecheck": "passed",
+    "standaloneBuild": "passed",
+    "pagesBuild": "passed",
+    "testsPassed": 55,
+    "testsSkippedForMissingHistoricInterimFixture": 4,
+    "edgeVisualReview": "local component preview: annual Caspian 1404/1403, Nour 1403 and portfolio"
+  },
+  "date": "2026-11-23"
+}
