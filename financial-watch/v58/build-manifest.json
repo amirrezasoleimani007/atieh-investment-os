@@ -1,0 +1,19 @@
+{
+  "version": "58.0.0",
+  "publishPrefix": "financial-watch/v58/",
+  "rulebookVersion": "10.0-fa-diagnostic-synthesis",
+  "rulebookSha256": "1977cbc961a82db7f66d29d2adb616f987a4cd2c9e317e710b115a9d5c058436",
+  "htmlSha256": "51f303148eb90ddad6c2add73cb0e0c14764f2d16748b0c768027e676d7b8739",
+  "htmlBytes": 6709373,
+  "charts": 6,
+  "exactRulebookStates": 45927,
+  "uniqueParagraphs": 1604,
+  "testsPassed": 84,
+  "historicInterimFixtureTestsSkipped": 4,
+  "typecheck": "passed",
+  "standaloneBuild": "passed",
+  "pagesBuild": "passed",
+  "normalizationEngine": "unchanged",
+  "privateFinancialDataIncluded": false,
+  "date": "2026-11-23"
+}
