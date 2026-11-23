@@ -1,0 +1,23 @@
+{
+  "applicationVersion": "55.0.0",
+  "base": "financial-watch/v54",
+  "rulebookVersion": 7,
+  "publishPrefix": "financial-watch/v55/",
+  "rulebookSha256": "864b151a64df7ab339484bd0dfe78555673f758f71eb0dda64be831d7a4f11f7",
+  "htmlSha256": "04d73e0acce7d43bbce7b03b61793338390049c5404f36313e6f0bfaff2e4d68",
+  "htmlBytes": 2887127,
+  "exactSourceMatches": 6561,
+  "reportMode": "local deterministic demo; optional server-side OpenRouter adapter",
+  "liveInferenceTested": false,
+  "privateFinancialDataIncluded": false,
+  "validation": {
+    "typecheck": "passed",
+    "standaloneBuild": "passed",
+    "pagesBuild": "passed",
+    "testsPassed": 64,
+    "testsSkippedForMissingHistoricInterimFixture": 4,
+    "apiTests": "mocked upstream only",
+    "edgeVisualReview": "annual Caspian: latest 1404 and selected 1403; radar, four paragraphs, stale report cleared"
+  },
+  "date": "2026-11-23"
+}
