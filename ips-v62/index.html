@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><base href="../"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="atieh-release" content="62"><link rel="icon" href="./atieh-logo.png"><title>سامانه خط‌مشی سرمایه‌گذاری آتیه فولاد | نسخه ۶۲</title></head>
+<body><div id="root">در حال بارگذاری نسخه ۶۲…</div><script type="module">
+const root=document.querySelector("#root");
+try {
+ const response=await fetch(new URL("./ips-v62/ips-v62.pack",document.baseURI));
+ if(!response.ok||!response.body)throw Error("download");
+ const stream=response.body;
+ const data=await new Response(stream.pipeThrough(new DecompressionStream("gzip"))).json();
+ const css=document.createElement("style");css.textContent=data.css;document.head.append(css);
+ const url=URL.createObjectURL(new Blob([data.js],{type:"text/javascript"}));
+ try{await import(url);}finally{URL.revokeObjectURL(url);}
+} catch(error) { console.error(error);root.textContent="بارگذاری سامانه انجام نشد. صفحه را دوباره بارگذاری کنید."; }
+</script></body></html>
