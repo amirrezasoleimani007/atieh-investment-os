@@ -1,0 +1,25 @@
+{
+  "version": "53.0.0",
+  "baseVersion": "52.0.0",
+  "baseCommit": "b894585edcb81dcb67737517eaf598471b844789",
+  "date": "2026-11-23",
+  "rulebook": "4.0",
+  "combinationCoverage": 6561,
+  "sha256": "690515c2fb20e9bf846fe8db83d0204491745bd6a2ecb90c80e0c2f24af7f9b8",
+  "bytes": 3878970,
+  "validation": {
+    "typecheck": "passed",
+    "standaloneBuild": "passed",
+    "pagesBuild": "passed",
+    "engineTestsPassed": 50,
+    "renderTestsPassed": 5,
+    "originalInterimFixtureTestsSkipped": 4,
+    "visualReview": "incomplete: browser control stopped before loading data"
+  },
+  "preservedNumericalFiles": [
+    "lib/financial-engine.ts",
+    "lib/value-creation-engine.ts",
+    "lib/report-period.ts",
+    "lib/workbook-parser.ts"
+  ]
+}
