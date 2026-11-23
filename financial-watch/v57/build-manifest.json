@@ -1,0 +1,35 @@
+{
+  "version": "57.0.0",
+  "publishPrefix": "financial-watch/v57/",
+  "rulebookVersion": 7,
+  "rulebookSha256": "864b151a64df7ab339484bd0dfe78555673f758f71eb0dda64be831d7a4f11f7",
+  "htmlSha256": "3b91d646578c4e3ebbe2b93f1abfc228e26bcdcaf13f793c707f31071fa1c177",
+  "htmlBytes": 2922844,
+  "model": "qwen3:4b-instruct",
+  "connection": "local Ollama via same-origin loopback bridge; cloud models rejected",
+  "privateFinancialDataIncluded": false,
+  "sourceSelectors": 11,
+  "inferenceEngineUnchangedFrom": "56.0.0",
+  "uiValidation": {
+    "entryVisibleBeforeUpload": true,
+    "directReportRoute": true,
+    "independentUploadWorkspace": true
+  },
+  "liveModelInference": {
+    "status": "passed",
+    "sources": [
+      "benchmark",
+      "capital"
+    ],
+    "elapsedSeconds": 214.15
+  },
+  "postprocessingOnRecordedLiveOutput": "passed; citation, negative-spread terminology and review-topic controls",
+  "modelQualityLimit": "small local model; management review required; all-source semantic quality not exhaustively validated",
+  "testsPassed": 79,
+  "historicInterimFixtureTestsSkipped": 4,
+  "typecheck": "passed",
+  "standaloneBuild": "passed",
+  "pagesBuild": "passed",
+  "exactRulebookStates": 6561,
+  "date": "2026-11-23"
+}
